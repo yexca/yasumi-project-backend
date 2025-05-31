@@ -6,6 +6,7 @@ import (
 	"yasumiProject-Backend/config"
 	"yasumiProject-Backend/database"
 	"yasumiProject-Backend/log"
+	"yasumiProject-Backend/models"
 	"yasumiProject-Backend/routes"
 	"yasumiProject-Backend/utils"
 )
@@ -20,6 +21,9 @@ func main() {
 
 	// Init Database
 	database.InitDB()
+	if err := models.AutoMigrate(database.DB); err != nil {
+		log.Panic("表结构初始化失败：", zap.Error(err))
+	}
 
 	r := gin.Default()
 
