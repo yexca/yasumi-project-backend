@@ -10,4 +10,5 @@ postgresql:
   sslmode: disable
 
 jwt:
-  secret: 's4'
+  secret: 'sjgd4'
+  expireHour: 24

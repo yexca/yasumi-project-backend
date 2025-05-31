@@ -20,6 +20,10 @@ type AppConfig struct {
 		Dbname   string
 		Sslmode  string
 	}
+	Jwt struct {
+		Secret     string
+		ExpireHour int
+	}
 }
 
 var Config AppConfig

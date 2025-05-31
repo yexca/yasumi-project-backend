@@ -6,6 +6,8 @@ import (
 	"yasumiProject-Backend/config"
 	"yasumiProject-Backend/database"
 	"yasumiProject-Backend/log"
+	"yasumiProject-Backend/routes"
+	"yasumiProject-Backend/utils"
 )
 
 func main() {
@@ -19,14 +21,15 @@ func main() {
 	// Init Database
 	database.InitDB()
 
-	// Init Router
-	//r := routes.InitRouter()
-
 	r := gin.Default()
+
+	// Init routes
+	routes.InitRoutes(r)
 
 	// 测试路由
 	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "pong"})
+		utils.Success(c, "pong")
+		//c.JSON(200, gin.H{"message": "pong"})
 	})
 
 	port := config.Config.Server.Port
