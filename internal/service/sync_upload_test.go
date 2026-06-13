@@ -322,6 +322,131 @@ func TestAcceptUploadRejectsRestoreWithoutRestoredOperation(t *testing.T) {
 	assertDomainCode(t, err, domain.ErrorInvalidTransition)
 }
 
+func TestAcceptUploadAcceptsRestoreAndPreservesCompletedStatus(t *testing.T) {
+	deletedAt := fixedNow.Add(-24 * time.Hour)
+	archivedAt := fixedNow.Add(-48 * time.Hour)
+	repo := newFakeSyncRepo()
+	repo.items[serviceItemID] = repository.ItemRecord{
+		ID:                   serviceItemID,
+		UserID:               serviceUserID,
+		ItemType:             "deadline_task",
+		Title:                "Restore completed record",
+		Status:               "completed",
+		DeadlineDate:         stringPtr("2026-06-20"),
+		DeadlineTimeZoneMode: stringPtr("date_only"),
+		DeletedAt:            &deletedAt,
+		ArchivedAt:           &archivedAt,
+		CreatedAt:            fixedNow.Add(-72 * time.Hour),
+		CreatedByDeviceID:    serviceDevice,
+		Revision:             11,
+	}
+	svc := NewSyncUploadService(repo.Repository(), fixedClock{})
+	revision := int64(11)
+	status := "completed"
+	deletedAtString := deletedAt.UTC().Format(time.RFC3339)
+	archivedAtString := archivedAt.UTC().Format(time.RFC3339)
+
+	_, err := svc.AcceptUpload(context.Background(), serviceUserID, SyncUpload{
+		DeviceID: serviceDevice,
+		Mutations: []SyncMutation{
+			{
+				Table: "operation_history",
+				Op:    "insert",
+				Row: rawJSON(`{
+					"id":"` + serviceOpID + `",
+					"user_id":"` + serviceUserID + `",
+					"item_id":"` + serviceItemID + `",
+					"event_type":"restored"
+				}`),
+			},
+			{
+				Table: "items",
+				Op:    "update",
+				Row:   rawJSON(`{"id":"` + serviceItemID + `","user_id":"` + serviceUserID + `","item_type":"deadline_task","title":"Restore completed record","status":"completed","deadline_date":"2026-06-20","deadline_time_zone_mode":"date_only","deleted_at":null,"archived_at":null}`),
+				ClientObserved: ObservedState{
+					Revision:   &revision,
+					Status:     &status,
+					DeletedAt:  &deletedAtString,
+					ArchivedAt: &archivedAtString,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("AcceptUpload error = %v", err)
+	}
+	got := repo.items[serviceItemID]
+	if got.Status != "completed" || got.DeletedAt != nil || got.ArchivedAt != nil {
+		t.Fatalf("restored item = %+v", got)
+	}
+}
+
+func TestAcceptUploadDeleteVersusEditKeepsTombstoneUntilExplicitRestore(t *testing.T) {
+	repo := newFakeSyncRepo()
+	repo.items[serviceItemID] = repository.ItemRecord{
+		ID:                serviceItemID,
+		UserID:            serviceUserID,
+		ItemType:          "inbox",
+		Title:             "Original title",
+		Status:            "active",
+		CreatedAt:         fixedNow.Add(-time.Hour),
+		CreatedByDeviceID: serviceDevice,
+		Revision:          20,
+	}
+	svc := NewSyncUploadService(repo.Repository(), fixedClock{})
+
+	_, err := svc.AcceptUpload(context.Background(), serviceUserID, SyncUpload{
+		DeviceID: "device-beta",
+		Mutations: []SyncMutation{{
+			Table: "items",
+			Op:    "update",
+			Row:   rawJSON(`{"id":"` + serviceItemID + `","user_id":"` + serviceUserID + `","item_type":"inbox","title":"Edited offline","status":"active"}`),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("edit upload: %v", err)
+	}
+
+	deletedAt := fixedNow.Format(time.RFC3339)
+	revision := int64(21)
+	status := "active"
+	_, err = svc.AcceptUpload(context.Background(), serviceUserID, SyncUpload{
+		DeviceID: serviceDevice,
+		Mutations: []SyncMutation{
+			{
+				Table: "operation_history",
+				Op:    "insert",
+				Row: rawJSON(`{
+					"id":"` + serviceOpID + `",
+					"user_id":"` + serviceUserID + `",
+					"item_id":"` + serviceItemID + `",
+					"event_type":"deleted"
+				}`),
+			},
+			{
+				Table: "items",
+				Op:    "update",
+				Row:   rawJSON(`{"id":"` + serviceItemID + `","user_id":"` + serviceUserID + `","item_type":"inbox","title":"Edited offline","status":"active","deleted_at":"` + deletedAt + `"}`),
+				ClientObserved: ObservedState{
+					Revision:  &revision,
+					Status:    &status,
+					DeletedAt: stringPtr(""),
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("delete upload: %v", err)
+	}
+	got := repo.items[serviceItemID]
+	if got.DeletedAt == nil {
+		t.Fatalf("deleted_at = nil, want tombstone")
+	}
+	if got.Revision != 22 {
+		t.Fatalf("revision = %d, want 22", got.Revision)
+	}
+}
+
 func TestAcceptUploadAcceptsPostponedActivationWhenDue(t *testing.T) {
 	idempotencyKey := domain.PostponedActivationIdempotencyKey(serviceUserID, serviceItemID, "2026-06-13")
 	repo := newFakeSyncRepo()
@@ -374,6 +499,39 @@ func TestAcceptUploadAcceptsPostponedActivationWhenDue(t *testing.T) {
 	}
 	if got := repo.items[serviceItemID].Status; got != "active" {
 		t.Fatalf("status = %q, want active", got)
+	}
+}
+
+func TestAcceptUploadDuplicatePostponedActivationReturnsExistingResult(t *testing.T) {
+	idempotencyKey := domain.PostponedActivationIdempotencyKey(serviceUserID, serviceItemID, "2026-06-13")
+	repo := newFakeSyncRepo()
+	repo.operations[idempotencyKey] = repository.OperationHistoryRecord{
+		ID:             serviceOpID,
+		UserID:         serviceUserID,
+		EventType:      "activated_from_postponed",
+		IdempotencyKey: &idempotencyKey,
+	}
+	svc := NewSyncUploadService(repo.Repository(), fixedClock{})
+
+	result, err := svc.AcceptUpload(context.Background(), serviceUserID, SyncUpload{
+		DeviceID: "device-beta",
+		Mutations: []SyncMutation{{
+			Table: "operation_history",
+			Op:    "insert",
+			Row: rawJSON(`{
+				"id":"30000000-0000-4000-8000-000000000099",
+				"user_id":"` + serviceUserID + `",
+				"item_id":"` + serviceItemID + `",
+				"event_type":"activated_from_postponed",
+				"idempotency_key":"` + idempotencyKey + `"
+			}`),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("AcceptUpload error = %v", err)
+	}
+	if result.DuplicateOf == nil || result.DuplicateOf.ID != serviceOpID {
+		t.Fatalf("duplicate = %+v, want existing activation operation", result.DuplicateOf)
 	}
 }
 

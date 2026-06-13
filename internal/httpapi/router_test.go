@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -320,12 +322,76 @@ func TestSyncUploadUsesStableErrorShape(t *testing.T) {
 	assertErrorShape(t, rec.Body.Bytes(), "forbidden")
 }
 
+func TestMetricsExposeRequestFailureAuthAndSyncCounters(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/session", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/sync/upload", strings.NewReader(`{
+		"client_batch_id":"batch-01",
+		"device_id":"device-01",
+		"mutations":[]
+	}`))
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`yasumi_auth_failures_total{reason="missing_bearer",route="/v1/session"} 1`,
+		`yasumi_http_request_failures_total{method="GET",route="/v1/session",status="401"} 1`,
+		`yasumi_sync_upload_results_total{result="accepted",route="/v1/sync/upload"} 1`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("metrics = %s, want to contain %s", body, want)
+		}
+	}
+}
+
+func TestRequestLoggingDoesNotLeakSensitiveInputs(t *testing.T) {
+	var logs bytes.Buffer
+	handler := newTestHandlerWithLogger(
+		Readiness{Database: true, Sync: true},
+		slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo})),
+	)
+	secretBody := `{"identifier":"user@example.com","password":"super-secret-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(secretBody))
+	req.Header.Set("Authorization", "Bearer raw-access-token")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	output := logs.String()
+	for _, forbidden := range []string{"super-secret-password", "raw-access-token", secretBody, "Authorization"} {
+		if strings.Contains(output, forbidden) {
+			t.Fatalf("log leaked %q: %s", forbidden, output)
+		}
+	}
+	if !strings.Contains(output, `"/v1/auth/login"`) {
+		t.Fatalf("log = %s, want route label", output)
+	}
+}
+
 func newTestHandler(readiness Readiness) http.Handler {
+	return newTestHandlerWithLogger(readiness, telemetry.NewLogger(config.LogConfig{Level: "error", Format: "text"}))
+}
+
+func newTestHandlerWithLogger(readiness Readiness, logger *slog.Logger) http.Handler {
 	cfg := config.MustLoad()
 	cfg.HTTP.RequestTimeout = time.Second
 	return NewRouter(
 		cfg,
-		telemetry.NewLogger(config.LogConfig{Level: "error", Format: "text"}),
+		logger,
+		telemetry.NewMetrics(),
 		fakeAuthenticator{},
 		fakeAccountService{},
 		fakeTokenIssuer{},

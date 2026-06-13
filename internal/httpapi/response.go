@@ -31,6 +31,32 @@ func writeAPIError(w http.ResponseWriter, status int, err apiError) {
 	writeJSON(w, status, err)
 }
 
+func (r *Router) writeAPIError(w http.ResponseWriter, req *http.Request, status int, err apiError) {
+	if r.metrics != nil {
+		r.metrics.Inc("yasumi_api_errors_total", map[string]string{
+			"route":       routeLabel(req),
+			"code":        err.Code,
+			"retryable":   boolLabel(err.Retryable),
+			"http_status": http.StatusText(status),
+		})
+		if err.Code == string(domain.ErrorValidationFailed) || err.Code == string(domain.ErrorInvalidTransition) {
+			r.metrics.Inc("yasumi_validation_rejections_total", map[string]string{
+				"route": routeLabel(req),
+				"code":  err.Code,
+			})
+		}
+	}
+	if r.logger != nil {
+		r.logger.Warn("api request rejected",
+			"request_id", requestID(req.Context()),
+			"route", routeLabel(req),
+			"code", err.Code,
+			"retryable", err.Retryable,
+		)
+	}
+	writeAPIError(w, status, err)
+}
+
 func domainError(err error) (int, apiError) {
 	var domainErr *domain.Error
 	if errors.As(err, &domainErr) {
@@ -90,4 +116,11 @@ func fieldMap(fields map[domain.FieldKey]string) map[string]string {
 		out[string(key)] = value
 	}
 	return out
+}
+
+func boolLabel(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
 }

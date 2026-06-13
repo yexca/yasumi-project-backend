@@ -34,10 +34,19 @@ func (r *Router) ready(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+func (r *Router) metricsText(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if r.metrics == nil {
+		return
+	}
+	_, _ = w.Write([]byte(r.metrics.PrometheusText()))
+}
+
 func (r *Router) register(w http.ResponseWriter, req *http.Request) {
 	var body auth.RegisterRequest
 	if err := decodeJSON(req, &body); err != nil {
-		writeAPIError(w, http.StatusBadRequest, apiError{
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
 			Code:      string(domain.ErrorValidationFailed),
 			Message:   "invalid register request",
 			Fields:    map[string]string{"body": "invalid_json"},
@@ -48,7 +57,7 @@ func (r *Router) register(w http.ResponseWriter, req *http.Request) {
 	result, err := r.accounts.Register(req.Context(), body)
 	if err != nil {
 		status, apiErr := authOrDomainError(err)
-		writeAPIError(w, status, apiErr)
+		r.writeAPIError(w, req, status, apiErr)
 		return
 	}
 	writeJSON(w, http.StatusCreated, result)
@@ -57,7 +66,7 @@ func (r *Router) register(w http.ResponseWriter, req *http.Request) {
 func (r *Router) login(w http.ResponseWriter, req *http.Request) {
 	var body auth.LoginRequest
 	if err := decodeJSON(req, &body); err != nil {
-		writeAPIError(w, http.StatusBadRequest, apiError{
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
 			Code:      string(domain.ErrorValidationFailed),
 			Message:   "invalid login request",
 			Fields:    map[string]string{"body": "invalid_json"},
@@ -68,7 +77,7 @@ func (r *Router) login(w http.ResponseWriter, req *http.Request) {
 	result, err := r.accounts.Login(req.Context(), body)
 	if err != nil {
 		status, apiErr := authOrDomainError(err)
-		writeAPIError(w, status, apiErr)
+		r.writeAPIError(w, req, status, apiErr)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -77,7 +86,7 @@ func (r *Router) login(w http.ResponseWriter, req *http.Request) {
 func (r *Router) logout(w http.ResponseWriter, req *http.Request) {
 	token, ok := bearerToken(req.Header.Get("Authorization"))
 	if !ok {
-		writeAPIError(w, http.StatusUnauthorized, apiError{
+		r.writeAPIError(w, req, http.StatusUnauthorized, apiError{
 			Code:      string(domain.ErrorUnauthorized),
 			Message:   "missing bearer token",
 			Fields:    map[string]string{},
@@ -87,7 +96,7 @@ func (r *Router) logout(w http.ResponseWriter, req *http.Request) {
 	}
 	if err := r.accounts.Logout(req.Context(), token); err != nil {
 		status, apiErr := authOrDomainError(err)
-		writeAPIError(w, status, apiErr)
+		r.writeAPIError(w, req, status, apiErr)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -96,7 +105,7 @@ func (r *Router) logout(w http.ResponseWriter, req *http.Request) {
 func (r *Router) refresh(w http.ResponseWriter, req *http.Request) {
 	var body refreshRequest
 	if err := decodeJSON(req, &body); err != nil {
-		writeAPIError(w, http.StatusBadRequest, apiError{
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
 			Code:      string(domain.ErrorValidationFailed),
 			Message:   "invalid refresh request",
 			Fields:    map[string]string{"body": "invalid_json"},
@@ -107,7 +116,7 @@ func (r *Router) refresh(w http.ResponseWriter, req *http.Request) {
 	result, err := r.accounts.Refresh(req.Context(), body.RefreshToken)
 	if err != nil {
 		status, apiErr := authOrDomainError(err)
-		writeAPIError(w, status, apiErr)
+		r.writeAPIError(w, req, status, apiErr)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -135,7 +144,7 @@ func (r *Router) syncToken(w http.ResponseWriter, req *http.Request) {
 		decoder := json.NewDecoder(req.Body)
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&body); err != nil {
-			writeAPIError(w, http.StatusBadRequest, apiError{
+			r.writeAPIError(w, req, http.StatusBadRequest, apiError{
 				Code:      string(domain.ErrorValidationFailed),
 				Message:   "invalid sync token request",
 				Fields:    map[string]string{"body": "invalid_json"},
@@ -148,7 +157,7 @@ func (r *Router) syncToken(w http.ResponseWriter, req *http.Request) {
 	body.DeviceID = strings.TrimSpace(body.DeviceID)
 	body.ClientVersion = strings.TrimSpace(body.ClientVersion)
 	if body.DeviceID == "" {
-		writeAPIError(w, http.StatusBadRequest, apiError{
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
 			Code:      string(domain.ErrorValidationFailed),
 			Message:   "device_id is required",
 			Fields:    map[string]string{"device_id": "required"},
@@ -161,7 +170,7 @@ func (r *Router) syncToken(w http.ResponseWriter, req *http.Request) {
 	token, err := r.tokens.Issue(req.Context(), user.ID, body.DeviceID, body.ClientVersion)
 	if err != nil {
 		status, apiErr := domainError(err)
-		writeAPIError(w, status, apiErr)
+		r.writeAPIError(w, req, status, apiErr)
 		return
 	}
 
@@ -176,7 +185,7 @@ func (r *Router) syncToken(w http.ResponseWriter, req *http.Request) {
 
 func (r *Router) syncUpload(w http.ResponseWriter, req *http.Request) {
 	if r.sync == nil {
-		writeAPIError(w, http.StatusServiceUnavailable, apiError{
+		r.writeAPIError(w, req, http.StatusServiceUnavailable, apiError{
 			Code:      string(domain.ErrorServiceUnavailable),
 			Message:   "sync upload service is unavailable",
 			Fields:    map[string]string{},
@@ -189,7 +198,7 @@ func (r *Router) syncUpload(w http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&upload); err != nil {
-		writeAPIError(w, http.StatusBadRequest, apiError{
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
 			Code:      string(domain.ErrorValidationFailed),
 			Message:   "invalid sync upload request",
 			Fields:    map[string]string{"body": "invalid_json"},
@@ -202,10 +211,16 @@ func (r *Router) syncUpload(w http.ResponseWriter, req *http.Request) {
 	result, err := r.sync.AcceptUpload(req.Context(), user.ID, upload)
 	if err != nil {
 		status, apiErr := domainError(err)
-		writeAPIError(w, status, apiErr)
+		r.writeAPIError(w, req, status, apiErr)
+		r.recordSyncUploadResult(req, "rejected")
 		return
 	}
 
+	resultLabel := "accepted"
+	if result.DuplicateOf != nil {
+		resultLabel = "duplicate"
+	}
+	r.recordSyncUploadResult(req, resultLabel)
 	writeJSON(w, http.StatusAccepted, result)
 }
 
@@ -230,4 +245,14 @@ func checkStatus(ok bool) string {
 		return "ok"
 	}
 	return "unavailable"
+}
+
+func (r *Router) recordSyncUploadResult(req *http.Request, result string) {
+	if r.metrics == nil {
+		return
+	}
+	r.metrics.Inc("yasumi_sync_upload_results_total", map[string]string{
+		"route":  routeLabel(req),
+		"result": result,
+	})
 }

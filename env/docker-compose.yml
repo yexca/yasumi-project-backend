@@ -6,6 +6,9 @@ services:
     working_dir: /src
     volumes:
       - ..:/src
+      - ../../dev_documents:/dev_documents:ro
+    environment:
+      YASUMI_CONTRACTS_DIR: /dev_documents
     command: ["go", "test", "./..."]
     profiles: ["tools"]
 

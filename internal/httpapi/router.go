@@ -9,6 +9,7 @@ import (
 	"github.com/yasumi/yasumi-project-backend/internal/config"
 	"github.com/yasumi/yasumi-project-backend/internal/service"
 	"github.com/yasumi/yasumi-project-backend/internal/synctoken"
+	"github.com/yasumi/yasumi-project-backend/internal/telemetry"
 )
 
 type ReadinessChecker interface {
@@ -23,6 +24,7 @@ type Readiness struct {
 type Router struct {
 	cfg       config.Config
 	logger    *slog.Logger
+	metrics   *telemetry.Metrics
 	authn     auth.Authenticator
 	accounts  AccountService
 	tokens    synctoken.Issuer
@@ -45,6 +47,7 @@ type AccountService interface {
 func NewRouter(
 	cfg config.Config,
 	logger *slog.Logger,
+	metrics *telemetry.Metrics,
 	authn auth.Authenticator,
 	accounts AccountService,
 	tokens synctoken.Issuer,
@@ -54,6 +57,7 @@ func NewRouter(
 	router := &Router{
 		cfg:       cfg,
 		logger:    logger,
+		metrics:   metrics,
 		authn:     authn,
 		accounts:  accounts,
 		tokens:    tokens,
@@ -68,6 +72,7 @@ func NewRouter(
 func (r *Router) routes() {
 	r.mux.HandleFunc("GET /healthz", r.health)
 	r.mux.HandleFunc("GET /readyz", r.ready)
+	r.mux.HandleFunc("GET /metrics", r.metricsText)
 	r.mux.HandleFunc("POST /v1/auth/register", r.register)
 	r.mux.HandleFunc("POST /v1/auth/login", r.login)
 	r.mux.HandleFunc("POST /v1/auth/logout", r.requireAuth(r.logout))
@@ -78,5 +83,5 @@ func (r *Router) routes() {
 }
 
 func (r *Router) middleware(next http.Handler) http.Handler {
-	return requestIDMiddleware(timeoutMiddleware(r.cfg.HTTP.RequestTimeout, next))
+	return requestIDMiddleware(timeoutMiddleware(r.cfg.HTTP.RequestTimeout, r.observabilityMiddleware(next)))
 }

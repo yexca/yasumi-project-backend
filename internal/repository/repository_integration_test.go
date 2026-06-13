@@ -231,6 +231,45 @@ func TestMigrationsRejectCrossUserReferences(t *testing.T) {
 	assertForeignKeyViolation(t, err)
 }
 
+func TestMigrationsCreateMVPQueryIndexes(t *testing.T) {
+	pool := newTestPool(t)
+	ctx := context.Background()
+	expected := []string{
+		"areas_unique_active_name",
+		"areas_user_sort_order_idx",
+		"areas_user_visibility_idx",
+		"recurring_templates_user_status_visibility_idx",
+		"recurring_templates_user_start_date_idx",
+		"items_unique_recurring_instance",
+		"items_user_status_visibility_idx",
+		"items_user_type_scheduled_idx",
+		"items_user_planned_work_date_idx",
+		"items_user_deadline_date_idx",
+		"items_user_deadline_local_idx",
+		"items_user_deadline_at_idx",
+		"items_user_review_date_idx",
+		"items_user_area_idx",
+		"items_user_updated_at_idx",
+		"operation_history_unique_idempotency_key",
+		"operation_history_user_item_created_idx",
+		"operation_history_user_template_created_idx",
+		"operation_history_user_event_created_idx",
+		"users_username_ci_unique",
+		"users_email_ci_unique",
+		"user_sessions_refresh_hash_unique",
+		"user_sessions_user_active_idx",
+	}
+	for _, name := range expected {
+		var exists bool
+		if err := pool.QueryRow(ctx, "select to_regclass($1) is not null", name).Scan(&exists); err != nil {
+			t.Fatalf("check index %s: %v", name, err)
+		}
+		if !exists {
+			t.Fatalf("index %s was not created", name)
+		}
+	}
+}
+
 func TestRepositoryOperationIdempotencyLookupAndSettingsUpsert(t *testing.T) {
 	pool := newTestPool(t)
 	ctx := context.Background()

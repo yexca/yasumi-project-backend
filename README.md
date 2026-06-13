@@ -9,7 +9,7 @@ Yasumi Go backend with first-party accounts and the MVP sync validation boundary
 - Infrastructure endpoints: `GET /healthz` and `GET /readyz`.
 - Direct API endpoints: `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/logout`, `POST /v1/auth/refresh`, `GET /v1/session`, and `POST /v1/sync/token`.
 - Sync upload adapter endpoint: `POST /v1/sync/upload`.
-- Request ID, request timeout, account-backed bearer authentication boundary, stable API error shape, and PowerSync-compatible JWT sync token issuance.
+- Request ID, request timeout, account-backed bearer authentication boundary, stable API error shape, production-safe request logs, `/metrics`, and PowerSync-compatible JWT sync token issuance.
 - Embedded PostgreSQL migrations for account tables, `items`, `recurring_task_templates`, `areas`, `operation_history`, and `user_settings`.
 - Repository transaction support and explicit user-scoped query/write methods.
 - Service-layer sync upload validation for ownership, item shapes, semantic item transitions, idempotency, server timestamps, and revisions.
@@ -58,6 +58,7 @@ Then open:
 ```text
 http://localhost:7650/healthz
 http://localhost:7650/readyz
+http://localhost:7650/metrics
 ```
 
 Create or log in to a local account, then use the returned `access_token` for authenticated calls:
@@ -92,11 +93,19 @@ docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml --
 
 PowerSync service wiring includes user-scoped Sync Streams for MVP synced tables and a local HS256 development key matching `YASUMI_SYNC_TOKEN_SECRET`. `/readyz` reports the configured sync service as unavailable unless that dependency is reachable.
 
+The Docker toolchain mounts `../dev_documents` read-only as `/dev_documents` so fixture and shared-constant compatibility tests run with the same contract documents used during development.
+
 ## Configuration
 
 Configuration is read once at startup from environment variables. See `env/local.env.example` for the supported keys.
 
 Invalid configuration fails fast with a startup error.
+
+## Release Readiness
+
+Deployment and operational checks are documented in `documents/deployment-operations.md`.
+
+The backend MVP release checklist is in `documents/mvp-release-checklist.md`.
 
 ## Legacy
 
