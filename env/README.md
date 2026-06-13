@@ -40,4 +40,10 @@ The API image includes both:
 - `/usr/local/bin/yasumi-api`
 - `/usr/local/bin/yasumi-migrate`
 
-`local.env.example` contains local-only placeholder values. Do not store real credentials in this repository.
+`local.env.example` contains local-only placeholder values for PostgreSQL, development bearer authentication, and sync token signing. Do not store real credentials in this repository.
+
+The default development bearer token is only for local testing:
+
+```powershell
+curl -H "Authorization: Bearer local-dev-session-token" http://localhost:7650/v1/session
+```

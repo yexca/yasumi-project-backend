@@ -14,6 +14,8 @@ import (
 type Config struct {
 	AppEnv    string
 	HTTP      HTTPConfig
+	Auth      AuthConfig
+	SyncToken SyncTokenConfig
 	Log       LogConfig
 	Postgres  PostgresConfig
 	PowerSync PowerSyncConfig
@@ -24,6 +26,7 @@ type HTTPConfig struct {
 	Port              int
 	ReadHeaderTimeout time.Duration
 	ShutdownTimeout   time.Duration
+	RequestTimeout    time.Duration
 }
 
 func (c HTTPConfig) Address() string {
@@ -33,6 +36,17 @@ func (c HTTPConfig) Address() string {
 type LogConfig struct {
 	Level  string
 	Format string
+}
+
+type AuthConfig struct {
+	DevToken       string
+	DevUserID      string
+	DevDisplayName string
+}
+
+type SyncTokenConfig struct {
+	Secret string
+	TTL    time.Duration
 }
 
 type PostgresConfig struct {
@@ -62,13 +76,15 @@ type PowerSyncConfig struct {
 }
 
 func Load() (Config, error) {
-	httpPort, httpPortErr := getInt("YASUMI_HTTP_PORT", 8080)
+	httpPort, httpPortErr := getInt("YASUMI_HTTP_PORT", 7650)
 	readHeaderTimeout, readHeaderTimeoutErr := getDuration("YASUMI_HTTP_READ_HEADER_TIMEOUT", 5*time.Second)
 	shutdownTimeout, shutdownTimeoutErr := getDuration("YASUMI_HTTP_SHUTDOWN_TIMEOUT", 10*time.Second)
+	requestTimeout, requestTimeoutErr := getDuration("YASUMI_HTTP_REQUEST_TIMEOUT", 10*time.Second)
 	postgresPort, postgresPortErr := getInt("YASUMI_POSTGRES_PORT", 5432)
+	syncTokenTTL, syncTokenTTLErr := getDuration("YASUMI_SYNC_TOKEN_TTL", 15*time.Minute)
 
 	var parseProblems []string
-	for _, err := range []error{httpPortErr, readHeaderTimeoutErr, shutdownTimeoutErr, postgresPortErr} {
+	for _, err := range []error{httpPortErr, readHeaderTimeoutErr, shutdownTimeoutErr, requestTimeoutErr, postgresPortErr, syncTokenTTLErr} {
 		if err != nil {
 			parseProblems = append(parseProblems, err.Error())
 		}
@@ -84,6 +100,16 @@ func Load() (Config, error) {
 			Port:              httpPort,
 			ReadHeaderTimeout: readHeaderTimeout,
 			ShutdownTimeout:   shutdownTimeout,
+			RequestTimeout:    requestTimeout,
+		},
+		Auth: AuthConfig{
+			DevToken:       getString("YASUMI_AUTH_DEV_TOKEN", "local-dev-session-token"),
+			DevUserID:      getString("YASUMI_AUTH_DEV_USER_ID", "00000000-0000-4000-8000-000000000001"),
+			DevDisplayName: getString("YASUMI_AUTH_DEV_DISPLAY_NAME", "Yasumi User"),
+		},
+		SyncToken: SyncTokenConfig{
+			Secret: getString("YASUMI_SYNC_TOKEN_SECRET", "local-dev-sync-secret-change-me"),
+			TTL:    syncTokenTTL,
 		},
 		Log: LogConfig{
 			Level:  getString("YASUMI_LOG_LEVEL", "info"),
@@ -123,6 +149,29 @@ func (c Config) Validate() error {
 	}
 	if c.HTTP.ShutdownTimeout <= 0 {
 		problems = append(problems, "YASUMI_HTTP_SHUTDOWN_TIMEOUT must be positive")
+	}
+	if c.HTTP.RequestTimeout <= 0 {
+		problems = append(problems, "YASUMI_HTTP_REQUEST_TIMEOUT must be positive")
+	}
+	if c.Auth.DevToken == "" {
+		problems = append(problems, "YASUMI_AUTH_DEV_TOKEN must not be empty")
+	}
+	if c.Auth.DevUserID == "" {
+		problems = append(problems, "YASUMI_AUTH_DEV_USER_ID must not be empty")
+	}
+	if c.SyncToken.Secret == "" {
+		problems = append(problems, "YASUMI_SYNC_TOKEN_SECRET must not be empty")
+	}
+	if c.SyncToken.TTL <= 0 {
+		problems = append(problems, "YASUMI_SYNC_TOKEN_TTL must be positive")
+	}
+	if c.AppEnv != "local" {
+		if c.Auth.DevToken == "local-dev-session-token" {
+			problems = append(problems, "YASUMI_AUTH_DEV_TOKEN must be explicitly configured outside local")
+		}
+		if c.SyncToken.Secret == "local-dev-sync-secret-change-me" {
+			problems = append(problems, "YASUMI_SYNC_TOKEN_SECRET must be explicitly configured outside local")
+		}
 	}
 	if !isOneOf(c.Log.Level, "debug", "info", "warn", "error") {
 		problems = append(problems, "YASUMI_LOG_LEVEL must be one of debug, info, warn, error")

@@ -1,18 +1,20 @@
 # Yasumi Backend
 
-Phase 03 database and repository baseline for the Yasumi Go backend.
+Phase 04 authentication and direct API boundary for the Yasumi Go backend.
 
 ## What Exists
 
 - Go executables at `cmd/yasumi-api` and `cmd/yasumi-migrate`.
 - Internal packages for app wiring, typed config, HTTP routing, structured logging, migrations, and PostgreSQL repository access.
-- Infrastructure endpoints: `GET /healthz`, `GET /readyz`, and `GET /v1`.
+- Infrastructure endpoints: `GET /healthz` and `GET /readyz`.
+- Direct API endpoints: `GET /v1/session` and `POST /v1/sync/token`.
+- Request ID, request timeout, bearer authentication boundary, stable API error shape, and sync token issuance.
 - Embedded PostgreSQL migrations for `items`, `recurring_task_templates`, `areas`, `operation_history`, and `user_settings`.
 - Repository transaction support and explicit user-scoped query methods.
 - Local environment files under `env/`.
 - Dockerfile for the API runtime and migration command.
 
-No MVP business CRUD routes are implemented in Phase 03.
+No MVP business CRUD routes are implemented in Phase 04.
 
 ## Local Commands
 
@@ -52,8 +54,15 @@ docker run --rm -v "${PWD}:/src" -w /src golang:1.23-alpine go vet ./...
 Then open:
 
 ```text
-http://localhost:8080/healthz
-http://localhost:8080/readyz
+http://localhost:7650/healthz
+http://localhost:7650/readyz
+```
+
+Authenticated local development calls use the placeholder bearer token from `env/local.env.example`:
+
+```powershell
+curl -H "Authorization: Bearer local-dev-session-token" http://localhost:7650/v1/session
+curl -X POST -H "Authorization: Bearer local-dev-session-token" -H "Content-Type: application/json" -d "{\"device_id\":\"device-01\",\"client_version\":\"0.1.0\"}" http://localhost:7650/v1/sync/token
 ```
 
 ## Docker Local Environment
@@ -76,7 +85,7 @@ PowerSync is configured with the official `journeyapps/powersync-service` image 
 docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml --profile sync up --build
 ```
 
-PowerSync service wiring exists for later sync phases; Phase 03 only owns the database schema and repository baseline.
+PowerSync service wiring exists for later sync phases. `/readyz` reports the configured sync service as unavailable unless that dependency is reachable.
 
 ## Configuration
 

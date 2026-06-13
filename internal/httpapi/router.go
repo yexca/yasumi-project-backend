@@ -1,59 +1,59 @@
 package httpapi
 
 import (
-	"encoding/json"
+	"context"
 	"log/slog"
 	"net/http"
 
+	"github.com/yasumi/yasumi-project-backend/internal/auth"
 	"github.com/yasumi/yasumi-project-backend/internal/config"
+	"github.com/yasumi/yasumi-project-backend/internal/synctoken"
 )
 
-type Router struct {
-	cfg    config.Config
-	logger *slog.Logger
-	mux    *http.ServeMux
+type ReadinessChecker interface {
+	Check(ctx context.Context) Readiness
 }
 
-func NewRouter(cfg config.Config, logger *slog.Logger) http.Handler {
+type Readiness struct {
+	Database bool
+	Sync     bool
+}
+
+type Router struct {
+	cfg       config.Config
+	logger    *slog.Logger
+	authn     auth.Authenticator
+	tokens    synctoken.Issuer
+	readiness ReadinessChecker
+	mux       *http.ServeMux
+}
+
+func NewRouter(
+	cfg config.Config,
+	logger *slog.Logger,
+	authn auth.Authenticator,
+	tokens synctoken.Issuer,
+	readiness ReadinessChecker,
+) http.Handler {
 	router := &Router{
-		cfg:    cfg,
-		logger: logger,
-		mux:    http.NewServeMux(),
+		cfg:       cfg,
+		logger:    logger,
+		authn:     authn,
+		tokens:    tokens,
+		readiness: readiness,
+		mux:       http.NewServeMux(),
 	}
 	router.routes()
-	return router
-}
-
-func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.mux.ServeHTTP(w, req)
+	return router.middleware(router.mux)
 }
 
 func (r *Router) routes() {
 	r.mux.HandleFunc("GET /healthz", r.health)
 	r.mux.HandleFunc("GET /readyz", r.ready)
-	r.mux.HandleFunc("GET /v1", r.v1)
+	r.mux.HandleFunc("GET /v1/session", r.requireAuth(r.session))
+	r.mux.HandleFunc("POST /v1/sync/token", r.requireAuth(r.syncToken))
 }
 
-func (r *Router) health(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-func (r *Router) ready(w http.ResponseWriter, _ *http.Request) {
-	// Phase 01 does not connect to PostgreSQL or PowerSync yet.
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
-}
-
-func (r *Router) v1(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"name": "yasumi-api",
-		"env":  r.cfg.AppEnv,
-	})
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-	}
+func (r *Router) middleware(next http.Handler) http.Handler {
+	return requestIDMiddleware(timeoutMiddleware(r.cfg.HTTP.RequestTimeout, next))
 }

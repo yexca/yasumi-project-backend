@@ -16,5 +16,5 @@ USER yasumi
 COPY --from=build /out/yasumi-api /usr/local/bin/yasumi-api
 COPY --from=build /out/yasumi-migrate /usr/local/bin/yasumi-migrate
 
-EXPOSE 8080
+EXPOSE 7650
 ENTRYPOINT ["/usr/local/bin/yasumi-api"]

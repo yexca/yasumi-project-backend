@@ -12,6 +12,7 @@ import (
 
 	"github.com/yasumi/yasumi-project-backend/internal/app"
 	"github.com/yasumi/yasumi-project-backend/internal/config"
+	"github.com/yasumi/yasumi-project-backend/internal/repository"
 	"github.com/yasumi/yasumi-project-backend/internal/telemetry"
 )
 
@@ -28,7 +29,14 @@ func main() {
 	logger := telemetry.NewLogger(cfg.Log)
 	slog.SetDefault(logger)
 
-	application := app.New(cfg, logger)
+	pool, err := repository.OpenPool(ctx, cfg.Postgres)
+	if err != nil {
+		logger.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	application := app.New(cfg, logger, pool)
 	server := application.HTTPServer()
 
 	errCh := make(chan error, 1)
