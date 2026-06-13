@@ -1,0 +1,22 @@
+replication:
+  connections:
+    - type: postgresql
+      uri: postgresql://yasumi:yasumi@postgres:5432/yasumi
+      sslmode: disable
+
+storage:
+  type: mongodb
+  uri: mongodb://mongo:27017/yasumi_powersync
+
+port: 8080
+
+sync_config:
+  path: /config/sync-config.yaml
+
+client_auth:
+  audience: ["powersync-dev", "powersync"]
+
+system:
+  logging:
+    level: info
+    format: text

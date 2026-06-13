@@ -5,10 +5,10 @@ postgresql:
   host: localhost
   port: 5432
   user: postgres
-  password: example
+  password: local-dev-placeholder
   dbname: yasumi
   sslmode: disable
 
 jwt:
-  secret: sjgd4
+  secret: local-dev-placeholder
   expireHour: 24

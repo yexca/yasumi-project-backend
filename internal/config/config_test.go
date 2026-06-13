@@ -1,0 +1,38 @@
+package config
+
+import "testing"
+
+func TestLoadDefaults(t *testing.T) {
+	t.Setenv("YASUMI_HTTP_PORT", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.HTTP.Port != 8080 {
+		t.Fatalf("HTTP.Port = %d, want 8080", cfg.HTTP.Port)
+	}
+	if cfg.Postgres.Database != "yasumi" {
+		t.Fatalf("Postgres.Database = %q, want yasumi", cfg.Postgres.Database)
+	}
+}
+
+func TestValidateRejectsInvalidPort(t *testing.T) {
+	cfg := MustLoad()
+	cfg.HTTP.Port = 70000
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate() error = nil, want error")
+	}
+}
+
+func TestLoadRejectsInvalidInteger(t *testing.T) {
+	t.Setenv("YASUMI_HTTP_PORT", "not-a-port")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want error")
+	}
+}

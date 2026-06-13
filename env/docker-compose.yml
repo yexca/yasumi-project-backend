@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: yasumi
+      POSTGRES_USER: yasumi
+      POSTGRES_PASSWORD: yasumi
+    ports:
+      - "5432:5432"
+    volumes:
+      - yasumi-postgres-data:/var/lib/postgresql/data
+    command: ["postgres", "-c", "wal_level=logical"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yasumi -d yasumi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  powersync:
+    image: journeyapps/powersync-service:latest
+    profiles: ["sync"]
+    command: ["start", "-r", "unified"]
+    volumes:
+      - ./powersync/service.yaml:/config/service.yaml:ro
+      - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+    ports:
+      - "8081:8080"
+    depends_on:
+      mongo-rs-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7.0
+    profiles: ["sync"]
+    command: --replSet rs0 --bind_ip_all --quiet
+    volumes:
+      - yasumi-powersync-mongo-data:/data/db
+
+  mongo-rs-init:
+    image: mongo:7.0
+    profiles: ["sync"]
+    depends_on:
+      - mongo
+    restart: "no"
+    entrypoint:
+      - bash
+      - -c
+      - 'sleep 10 && mongosh --host mongo:27017 --eval ''try{rs.status().ok && quit(0)} catch {} rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host : "mongo:27017" }]})'''
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - local.env.example
+    environment:
+      YASUMI_POSTGRES_HOST: postgres
+      YASUMI_POWERSYNC_URL: http://powersync:8080
+      YASUMI_LOG_FORMAT: json
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  yasumi-postgres-data:
+  yasumi-powersync-mongo-data:

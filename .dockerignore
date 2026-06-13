@@ -1,0 +1,7 @@
+.git/
+.idea/
+.vscode/
+legacy/
+env/local.env
+*.log
+coverage.out

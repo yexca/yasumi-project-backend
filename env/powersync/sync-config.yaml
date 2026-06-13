@@ -1,0 +1,4 @@
+config:
+  edition: 3
+
+streams: {}
