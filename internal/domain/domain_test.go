@@ -10,10 +10,11 @@ func TestValidateItemAcceptsValidMVPShapes(t *testing.T) {
 			Status:   StatusActive,
 		},
 		{
-			Title:         "Prepare weekly notes",
-			ItemType:      ItemTypeDateTask,
-			Status:        StatusActive,
-			ScheduledDate: "2026-06-14",
+			Title:                 "Prepare weekly notes",
+			ItemType:              ItemTypeDateTask,
+			Status:                StatusActive,
+			ScheduledDate:         "2026-06-14",
+			ScheduledTimeZoneMode: ScheduledTimeZoneModeFloating,
 		},
 		{
 			Title:                "Submit quarterly report",
@@ -82,6 +83,18 @@ func TestValidateItemRejectsInvalidItemShapes(t *testing.T) {
 			},
 			field:      FieldScheduledDate,
 			wantReason: "required_for_date_task",
+		},
+		{
+			name: "date task with unsupported scheduled timezone mode",
+			item: Item{
+				Title:                 "Unsupported scheduled mode",
+				ItemType:              ItemTypeDateTask,
+				Status:                StatusActive,
+				ScheduledDate:         "2026-06-14",
+				ScheduledTimeZoneMode: "fixed",
+			},
+			field:      FieldScheduledDate,
+			wantReason: "invalid_scheduled_time_zone_mode",
 		},
 		{
 			name: "idea with deadline",

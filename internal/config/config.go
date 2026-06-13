@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -41,6 +42,19 @@ type PostgresConfig struct {
 	User     string
 	Password string
 	SSLMode  string
+}
+
+func (c PostgresConfig) DSN() string {
+	dsn := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.User, c.Password),
+		Host:   net.JoinHostPort(c.Host, strconv.Itoa(c.Port)),
+		Path:   c.Database,
+	}
+	query := dsn.Query()
+	query.Set("sslmode", c.SSLMode)
+	dsn.RawQuery = query.Encode()
+	return dsn.String()
 }
 
 type PowerSyncConfig struct {

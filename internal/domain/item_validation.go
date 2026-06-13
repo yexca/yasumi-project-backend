@@ -3,17 +3,18 @@ package domain
 import "strings"
 
 type Item struct {
-	Title                string
-	ItemType             ItemType
-	Status               BusinessStatus
-	ScheduledDate        string
-	DeadlineDate         string
-	DeadlineTime         string
-	DeadlineAt           string
-	DeadlineTimeZoneMode DeadlineTimeZoneMode
-	HiddenReason         HiddenReason
-	DeletedAt            string
-	ArchivedAt           string
+	Title                 string
+	ItemType              ItemType
+	Status                BusinessStatus
+	ScheduledDate         string
+	ScheduledTimeZoneMode ScheduledTimeZoneMode
+	DeadlineDate          string
+	DeadlineTime          string
+	DeadlineAt            string
+	DeadlineTimeZoneMode  DeadlineTimeZoneMode
+	HiddenReason          HiddenReason
+	DeletedAt             string
+	ArchivedAt            string
 }
 
 func ValidateItem(item Item) *Error {
@@ -36,6 +37,9 @@ func ValidateItem(item Item) *Error {
 	case ItemTypeDateTask:
 		if item.ScheduledDate == "" {
 			err.addField(FieldScheduledDate, "required_for_date_task")
+		}
+		if item.ScheduledTimeZoneMode != "" && !IsValidScheduledTimeZoneMode(item.ScheduledTimeZoneMode) {
+			err.addField(FieldScheduledDate, "invalid_scheduled_time_zone_mode")
 		}
 	case ItemTypeDeadlineTask:
 		if deadlineErr := ValidateDeadline(DeadlineShape{

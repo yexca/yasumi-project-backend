@@ -14,6 +14,7 @@ The implementation intentionally avoids HTTP, PostgreSQL, PowerSync, logging, an
 - Allow-list validators for shared enum-like values.
 - Stable domain error shape with error codes, field keys, and retryability.
 - Item shape validation for inbox items, date tasks, deadline tasks, and ideas.
+- Scheduled time zone mode validation for date tasks; MVP accepts only `floating`.
 - Deadline mode validation for date-only, floating, and fixed deadlines.
 - Status transition validation using the shared transition table.
 - Metadata precedence helpers for deleted, archived, hidden, and status states.
@@ -25,6 +26,7 @@ The implementation intentionally avoids HTTP, PostgreSQL, PowerSync, logging, an
 Tests cover the available contract fixture scenarios for:
 
 - Valid item rows for all MVP item types.
+- Date task rejection for unsupported scheduled time zone modes.
 - Valid deadline modes.
 - Invalid deadline mode combinations.
 - Allowed and rejected status transitions.
@@ -34,3 +36,12 @@ Tests cover the available contract fixture scenarios for:
 
 The tests are table-driven and keep fixture-derived values explicit in the backend repository so the package remains portable when cloned by itself.
 
+## Acceptance Review Follow-up
+
+The first acceptance pass found that host-level Go tooling was unavailable and that `scheduled_time_zone_mode` was not enforced by `ValidateItem`.
+
+Follow-up changes:
+
+- Added a project-local Docker Go toolchain under `env/` so verification does not require installing Go on the host.
+- Added `scheduled_time_zone_mode` to the domain item shape and reject unsupported values for date tasks.
+- Added test coverage for the unsupported scheduled time zone mode case.
