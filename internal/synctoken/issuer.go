@@ -39,12 +39,24 @@ func NewHMACIssuer(cfg config.SyncTokenConfig) *HMACIssuer {
 func (i *HMACIssuer) Issue(_ context.Context, userID, deviceID, clientVersion string) (Token, error) {
 	issuedAt := i.now().UTC()
 	expiresAt := issuedAt.Add(i.ttl)
+	header := tokenHeader{
+		Algorithm: "HS256",
+		Type:      "JWT",
+		KeyID:     "local-dev-sync-key",
+	}
 	payload := tokenPayload{
+		Subject:       userID,
+		Audience:      []string{"powersync-dev", "powersync"},
 		UserID:        userID,
 		DeviceID:      deviceID,
 		ClientVersion: clientVersion,
-		IssuedAt:      issuedAt.Format(time.RFC3339),
-		ExpiresAt:     expiresAt.Format(time.RFC3339),
+		IssuedAt:      issuedAt.Unix(),
+		ExpiresAt:     expiresAt.Unix(),
+	}
+
+	headerBytes, err := json.Marshal(header)
+	if err != nil {
+		return Token{}, fmt.Errorf("marshal sync token header: %w", err)
 	}
 
 	payloadBytes, err := json.Marshal(payload)
@@ -52,24 +64,33 @@ func (i *HMACIssuer) Issue(_ context.Context, userID, deviceID, clientVersion st
 		return Token{}, fmt.Errorf("marshal sync token payload: %w", err)
 	}
 
+	encodedHeader := base64.RawURLEncoding.EncodeToString(headerBytes)
+	encodedPayload := base64.RawURLEncoding.EncodeToString(payloadBytes)
+	signingInput := encodedHeader + "." + encodedPayload
 	mac := hmac.New(sha256.New, i.secret)
-	if _, err := mac.Write(payloadBytes); err != nil {
+	if _, err := mac.Write([]byte(signingInput)); err != nil {
 		return Token{}, fmt.Errorf("sign sync token payload: %w", err)
 	}
-
-	encodedPayload := base64.RawURLEncoding.EncodeToString(payloadBytes)
 	encodedSignature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	return Token{
-		Value:     encodedPayload + "." + encodedSignature,
+		Value:     signingInput + "." + encodedSignature,
 		ExpiresAt: expiresAt,
 		UserID:    userID,
 	}, nil
 }
 
+type tokenHeader struct {
+	Algorithm string `json:"alg"`
+	Type      string `json:"typ"`
+	KeyID     string `json:"kid"`
+}
+
 type tokenPayload struct {
-	UserID        string `json:"user_id"`
-	DeviceID      string `json:"device_id,omitempty"`
-	ClientVersion string `json:"client_version,omitempty"`
-	IssuedAt      string `json:"iat"`
-	ExpiresAt     string `json:"exp"`
+	Subject       string   `json:"sub"`
+	Audience      []string `json:"aud"`
+	UserID        string   `json:"user_id"`
+	DeviceID      string   `json:"device_id,omitempty"`
+	ClientVersion string   `json:"client_version,omitempty"`
+	IssuedAt      int64    `json:"iat"`
+	ExpiresAt     int64    `json:"exp"`
 }

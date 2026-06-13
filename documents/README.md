@@ -11,3 +11,7 @@ Documents in this directory must not include real credentials, private keys, acc
 - `phase-03-development.md`
 - `phase-04-development.md`
 - `phase-04-verification.md`
+- `phase-05-development.md`
+- `phase-05-verification.md`
+- `phase-06-development.md`
+- `phase-06-verification.md`

@@ -56,6 +56,10 @@ func (r *Router) requireAuth(next func(http.ResponseWriter, *http.Request)) http
 
 		user, err := r.authn.Authenticate(req.Context(), token)
 		if err != nil {
+			if status, apiErr := authOrDomainError(err); apiErr.Code == string(domain.ErrorAccountDisabled) {
+				writeAPIError(w, status, apiErr)
+				return
+			}
 			writeAPIError(w, http.StatusUnauthorized, apiError{
 				Code:      string(domain.ErrorUnauthorized),
 				Message:   "invalid bearer token",

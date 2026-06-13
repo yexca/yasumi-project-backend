@@ -1,4 +1,12 @@
 config:
   edition: 3
 
-streams: {}
+streams:
+  user_data:
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM areas WHERE user_id = auth.user_id()
+      - SELECT * FROM recurring_task_templates WHERE user_id = auth.user_id()
+      - SELECT * FROM items WHERE user_id = auth.user_id()
+      - SELECT * FROM operation_history WHERE user_id = auth.user_id()
+      - SELECT * FROM user_settings WHERE user_id = auth.user_id()

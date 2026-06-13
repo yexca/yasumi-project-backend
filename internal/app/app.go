@@ -9,6 +9,8 @@ import (
 	"github.com/yasumi/yasumi-project-backend/internal/auth"
 	"github.com/yasumi/yasumi-project-backend/internal/config"
 	"github.com/yasumi/yasumi-project-backend/internal/httpapi"
+	"github.com/yasumi/yasumi-project-backend/internal/repository"
+	"github.com/yasumi/yasumi-project-backend/internal/service"
 	"github.com/yasumi/yasumi-project-backend/internal/synctoken"
 )
 
@@ -27,13 +29,17 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool) *App {
 }
 
 func (a *App) HTTPServer() *http.Server {
+	repo := repository.New(a.pool)
+	accounts := auth.NewAccountService(auth.NewRepositoryAdapter(repo), a.cfg, auth.SystemClock{})
 	return &http.Server{
 		Addr: a.cfg.HTTP.Address(),
 		Handler: httpapi.NewRouter(
 			a.cfg,
 			a.logger,
-			auth.NewDevBearerAuthenticator(a.cfg.Auth),
+			accounts,
+			accounts,
 			synctoken.NewHMACIssuer(a.cfg.SyncToken),
+			service.NewSyncUploadService(service.NewRepositoryAdapter(repo), service.SystemClock{}),
 			NewReadinessChecker(a.pool, a.cfg.PowerSync),
 		),
 		ReadHeaderTimeout: a.cfg.HTTP.ReadHeaderTimeout,

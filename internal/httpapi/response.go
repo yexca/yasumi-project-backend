@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/yasumi/yasumi-project-backend/internal/auth"
 	"github.com/yasumi/yasumi-project-backend/internal/domain"
 )
 
@@ -48,6 +49,18 @@ func domainError(err error) (int, apiError) {
 	}
 }
 
+func authOrDomainError(err error) (int, apiError) {
+	if errors.Is(err, auth.ErrUnauthenticated) {
+		return http.StatusUnauthorized, apiError{
+			Code:      string(domain.ErrorUnauthorized),
+			Message:   "invalid session",
+			Fields:    map[string]string{},
+			Retryable: false,
+		}
+	}
+	return domainError(err)
+}
+
 func statusForDomainCode(code domain.ErrorCode) int {
 	switch code {
 	case domain.ErrorUnauthorized:
@@ -58,7 +71,11 @@ func statusForDomainCode(code domain.ErrorCode) int {
 		return http.StatusNotFound
 	case domain.ErrorValidationFailed:
 		return http.StatusBadRequest
-	case domain.ErrorInvalidTransition, domain.ErrorUnsupportedOperation, domain.ErrorDuplicateRecurringInstance:
+	case domain.ErrorInvalidCredentials, domain.ErrorSessionExpired:
+		return http.StatusUnauthorized
+	case domain.ErrorAccountDisabled:
+		return http.StatusForbidden
+	case domain.ErrorUsernameAlreadyTaken, domain.ErrorEmailAlreadyRegistered, domain.ErrorInvalidTransition, domain.ErrorUnsupportedOperation, domain.ErrorDuplicateRecurringInstance:
 		return http.StatusConflict
 	case domain.ErrorServiceUnavailable:
 		return http.StatusServiceUnavailable

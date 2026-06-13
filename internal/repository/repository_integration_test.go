@@ -30,6 +30,7 @@ const (
 func TestMigrationsEnforceMinimumConstraints(t *testing.T) {
 	pool := newTestPool(t)
 	ctx := context.Background()
+	insertUser(t, pool, userA)
 
 	validItemSQL := `
 		insert into items (
@@ -101,6 +102,7 @@ func TestMigrationsEnforceMinimumConstraints(t *testing.T) {
 func TestMigrationsEnforceRecurrenceAndOperationUniqueness(t *testing.T) {
 	pool := newTestPool(t)
 	ctx := context.Background()
+	insertUser(t, pool, userA)
 
 	insertTemplate(t, pool, tplA, userA)
 	insertRecurringItem(t, pool, itemA, userA, tplA, 1)
@@ -149,6 +151,7 @@ func TestMigrationsEnforceRecurrenceAndOperationUniqueness(t *testing.T) {
 func TestOperationHistoryIsAppendOnly(t *testing.T) {
 	pool := newTestPool(t)
 	ctx := context.Background()
+	insertUser(t, pool, userA)
 
 	insertOperation(t, pool, opA, userA, "append-only")
 
@@ -167,6 +170,8 @@ func TestRepositoryScopesItemQueriesByUser(t *testing.T) {
 	pool := newTestPool(t)
 	ctx := context.Background()
 	repo := repository.New(pool)
+	insertUser(t, pool, userA)
+	insertUser(t, pool, userB)
 
 	insertBaseItem(t, pool, itemA, userA, "A item")
 	insertBaseItem(t, pool, itemB, userB, "B item")
@@ -193,6 +198,8 @@ func TestRepositoryScopesItemQueriesByUser(t *testing.T) {
 func TestMigrationsRejectCrossUserReferences(t *testing.T) {
 	pool := newTestPool(t)
 	ctx := context.Background()
+	insertUser(t, pool, userA)
+	insertUser(t, pool, userB)
 
 	areaID := "40000000-0000-4000-8000-000000000001"
 	insertArea(t, pool, areaID, userA)
@@ -230,6 +237,7 @@ func TestRepositoryOperationIdempotencyLookupAndSettingsUpsert(t *testing.T) {
 	repo := repository.New(pool)
 	now := time.Now().UTC().Truncate(time.Second)
 	idempotencyKey := "action:00000000-0000-4000-8000-000000000001:device-alpha:test"
+	insertUser(t, pool, userA)
 
 	if err := repo.InTx(ctx, func(ctx context.Context, tx *repository.Tx) error {
 		if err := tx.InsertOperationHistory(ctx, repository.OperationHistoryRecord{
@@ -271,6 +279,62 @@ func TestRepositoryOperationIdempotencyLookupAndSettingsUpsert(t *testing.T) {
 		})
 	}); err != nil {
 		t.Fatalf("repository transaction: %v", err)
+	}
+}
+
+func TestRepositoryUpsertItemAssignsServerAcceptedState(t *testing.T) {
+	pool := newTestPool(t)
+	ctx := context.Background()
+	repo := repository.New(pool)
+	now := time.Now().UTC().Truncate(time.Second)
+	insertUser(t, pool, userA)
+
+	if err := repo.InTx(ctx, func(ctx context.Context, tx *repository.Tx) error {
+		return tx.UpsertItem(ctx, repository.ItemRecord{
+			ID:                itemA,
+			UserID:            userA,
+			ItemType:          "date_task",
+			Title:             "Plan next step",
+			Status:            "active",
+			ScheduledDate:     stringPtr("2026-06-14"),
+			CreatedAt:         now,
+			UpdatedAt:         now,
+			ClientUpdatedAt:   now,
+			ServerUpdatedAt:   now,
+			CreatedByDeviceID: device,
+			UpdatedByDeviceID: device,
+			Revision:          1,
+		})
+	}); err != nil {
+		t.Fatalf("upsert item insert: %v", err)
+	}
+
+	if err := repo.InTx(ctx, func(ctx context.Context, tx *repository.Tx) error {
+		row, err := tx.GetItemForUpdateByUser(ctx, userA, itemA)
+		if err != nil {
+			return err
+		}
+		if row.Title != "Plan next step" || row.Revision != 1 {
+			t.Fatalf("inserted row = %+v", row)
+		}
+		row.Title = "Plan updated step"
+		row.Revision = 2
+		return tx.UpsertItem(ctx, row)
+	}); err != nil {
+		t.Fatalf("upsert item update: %v", err)
+	}
+
+	if err := repo.InTx(ctx, func(ctx context.Context, tx *repository.Tx) error {
+		row, err := tx.GetItemForUpdateByUser(ctx, userA, itemA)
+		if err != nil {
+			return err
+		}
+		if row.Title != "Plan updated step" || row.Revision != 2 {
+			t.Fatalf("updated row = %+v", row)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("read updated item: %v", err)
 	}
 }
 
@@ -367,6 +431,21 @@ func insertBaseItem(t *testing.T, pool *pgxpool.Pool, id, userID, title string) 
 	}
 }
 
+func insertUser(t *testing.T, pool *pgxpool.Pool, userID string) {
+	t.Helper()
+	username := "user_" + strings.ReplaceAll(userID, "-", "")
+	email := username + "@example.test"
+	_, err := pool.Exec(context.Background(), `
+		insert into users (
+			id, username, email, display_name, status, created_at, updated_at
+		) values ($1, $2, $3, 'Test User', 'active', now(), now())
+		on conflict (id) do nothing
+	`, userID, username, email)
+	if err != nil {
+		t.Fatalf("insert user %s: %v", userID, err)
+	}
+}
+
 func insertArea(t *testing.T, pool *pgxpool.Pool, id, userID string) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
@@ -425,4 +504,8 @@ func insertOperation(t *testing.T, pool *pgxpool.Pool, id, userID, idempotencyKe
 	if err != nil {
 		t.Fatalf("insert operation %s: %v", id, err)
 	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }

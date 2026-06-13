@@ -1,20 +1,22 @@
 # Yasumi Backend
 
-Phase 04 authentication and direct API boundary for the Yasumi Go backend.
+Yasumi Go backend with first-party accounts and the MVP sync validation boundary.
 
 ## What Exists
 
 - Go executables at `cmd/yasumi-api` and `cmd/yasumi-migrate`.
 - Internal packages for app wiring, typed config, HTTP routing, structured logging, migrations, and PostgreSQL repository access.
 - Infrastructure endpoints: `GET /healthz` and `GET /readyz`.
-- Direct API endpoints: `GET /v1/session` and `POST /v1/sync/token`.
-- Request ID, request timeout, bearer authentication boundary, stable API error shape, and sync token issuance.
-- Embedded PostgreSQL migrations for `items`, `recurring_task_templates`, `areas`, `operation_history`, and `user_settings`.
-- Repository transaction support and explicit user-scoped query methods.
+- Direct API endpoints: `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/logout`, `POST /v1/auth/refresh`, `GET /v1/session`, and `POST /v1/sync/token`.
+- Sync upload adapter endpoint: `POST /v1/sync/upload`.
+- Request ID, request timeout, account-backed bearer authentication boundary, stable API error shape, and PowerSync-compatible JWT sync token issuance.
+- Embedded PostgreSQL migrations for account tables, `items`, `recurring_task_templates`, `areas`, `operation_history`, and `user_settings`.
+- Repository transaction support and explicit user-scoped query/write methods.
+- Service-layer sync upload validation for ownership, item shapes, semantic item transitions, idempotency, server timestamps, and revisions.
 - Local environment files under `env/`.
 - Dockerfile for the API runtime and migration command.
 
-No MVP business CRUD routes are implemented in Phase 04.
+No MVP business CRUD routes are implemented. Synced business writes enter through the sync upload boundary.
 
 ## Local Commands
 
@@ -58,11 +60,14 @@ http://localhost:7650/healthz
 http://localhost:7650/readyz
 ```
 
-Authenticated local development calls use the placeholder bearer token from `env/local.env.example`:
+Create or log in to a local account, then use the returned `access_token` for authenticated calls:
 
 ```powershell
-curl -H "Authorization: Bearer local-dev-session-token" http://localhost:7650/v1/session
-curl -X POST -H "Authorization: Bearer local-dev-session-token" -H "Content-Type: application/json" -d "{\"device_id\":\"device-01\",\"client_version\":\"0.1.0\"}" http://localhost:7650/v1/sync/token
+$auth = Invoke-RestMethod -Uri http://localhost:7650/v1/auth/register -Method Post -ContentType "application/json" -Body "{\"username\":\"local_user\",\"email\":\"local@example.com\",\"password\":\"password123\"}"
+$token = $auth.session.access_token
+curl -H "Authorization: Bearer $token" http://localhost:7650/v1/session
+curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"device_id\":\"device-01\",\"client_version\":\"0.1.0\"}" http://localhost:7650/v1/sync/token
+curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"client_batch_id\":\"batch-01\",\"device_id\":\"device-01\",\"mutations\":[]}" http://localhost:7650/v1/sync/upload
 ```
 
 ## Docker Local Environment
@@ -85,7 +90,7 @@ PowerSync is configured with the official `journeyapps/powersync-service` image 
 docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml --profile sync up --build
 ```
 
-PowerSync service wiring exists for later sync phases. `/readyz` reports the configured sync service as unavailable unless that dependency is reachable.
+PowerSync service wiring includes user-scoped Sync Streams for MVP synced tables and a local HS256 development key matching `YASUMI_SYNC_TOKEN_SECRET`. `/readyz` reports the configured sync service as unavailable unless that dependency is reachable.
 
 ## Configuration
 

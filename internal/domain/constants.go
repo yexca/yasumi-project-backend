@@ -148,6 +148,11 @@ const (
 	ErrorForbidden                  ErrorCode = "forbidden"
 	ErrorNotFound                   ErrorCode = "not_found"
 	ErrorValidationFailed           ErrorCode = "validation_failed"
+	ErrorInvalidCredentials         ErrorCode = "invalid_credentials"
+	ErrorUsernameAlreadyTaken       ErrorCode = "username_already_taken"
+	ErrorEmailAlreadyRegistered     ErrorCode = "email_already_registered"
+	ErrorSessionExpired             ErrorCode = "session_expired"
+	ErrorAccountDisabled            ErrorCode = "account_disabled"
 	ErrorInvalidTransition          ErrorCode = "invalid_transition"
 	ErrorUnsupportedOperation       ErrorCode = "unsupported_operation"
 	ErrorDuplicateRecurringInstance ErrorCode = "duplicate_recurring_instance"
@@ -158,6 +163,13 @@ type FieldKey string
 
 const (
 	FieldTitle                     FieldKey = "title"
+	FieldName                      FieldKey = "name"
+	FieldUsername                  FieldKey = "username"
+	FieldEmail                     FieldKey = "email"
+	FieldPassword                  FieldKey = "password"
+	FieldIdentifier                FieldKey = "identifier"
+	FieldRefreshToken              FieldKey = "refresh_token"
+	FieldDisplayName               FieldKey = "display_name"
 	FieldItemType                  FieldKey = "item_type"
 	FieldStatus                    FieldKey = "status"
 	FieldScheduledDate             FieldKey = "scheduled_date"
@@ -165,6 +177,12 @@ const (
 	FieldDeadlineTime              FieldKey = "deadline_time"
 	FieldDeadlineAt                FieldKey = "deadline_at"
 	FieldDeadlineTimeZoneMode      FieldKey = "deadline_time_zone_mode"
+	FieldFrequency                 FieldKey = "frequency"
+	FieldInterval                  FieldKey = "interval"
+	FieldRecurrenceBasis           FieldKey = "recurrence_basis"
+	FieldStartDate                 FieldKey = "start_date"
+	FieldEndType                   FieldKey = "end_type"
+	FieldEndDate                   FieldKey = "end_date"
 	FieldUserID                    FieldKey = "user_id"
 	FieldIdempotencyKey            FieldKey = "idempotency_key"
 	FieldRecurringSequence         FieldKey = "recurring_sequence"
@@ -274,6 +292,11 @@ func IsValidErrorCode(v ErrorCode) bool {
 		ErrorForbidden,
 		ErrorNotFound,
 		ErrorValidationFailed,
+		ErrorInvalidCredentials,
+		ErrorUsernameAlreadyTaken,
+		ErrorEmailAlreadyRegistered,
+		ErrorSessionExpired,
+		ErrorAccountDisabled,
 		ErrorInvalidTransition,
 		ErrorUnsupportedOperation,
 		ErrorDuplicateRecurringInstance,
@@ -284,6 +307,13 @@ func IsValidErrorCode(v ErrorCode) bool {
 func IsValidFieldKey(v FieldKey) bool {
 	return isOneOf(v,
 		FieldTitle,
+		FieldName,
+		FieldUsername,
+		FieldEmail,
+		FieldPassword,
+		FieldIdentifier,
+		FieldRefreshToken,
+		FieldDisplayName,
 		FieldItemType,
 		FieldStatus,
 		FieldScheduledDate,
@@ -291,6 +321,12 @@ func IsValidFieldKey(v FieldKey) bool {
 		FieldDeadlineTime,
 		FieldDeadlineAt,
 		FieldDeadlineTimeZoneMode,
+		FieldFrequency,
+		FieldInterval,
+		FieldRecurrenceBasis,
+		FieldStartDate,
+		FieldEndType,
+		FieldEndDate,
 		FieldUserID,
 		FieldIdempotencyKey,
 		FieldRecurringSequence,

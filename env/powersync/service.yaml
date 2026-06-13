@@ -15,6 +15,12 @@ sync_config:
 
 client_auth:
   audience: ["powersync-dev", "powersync"]
+  jwks:
+    keys:
+      - kty: oct
+        kid: local-dev-sync-key
+        alg: HS256
+        k: bG9jYWwtZGV2LXN5bmMtc2VjcmV0LWNoYW5nZS1tZQ
 
 system:
   logging:

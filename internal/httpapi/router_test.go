@@ -12,6 +12,8 @@ import (
 
 	"github.com/yasumi/yasumi-project-backend/internal/auth"
 	"github.com/yasumi/yasumi-project-backend/internal/config"
+	"github.com/yasumi/yasumi-project-backend/internal/domain"
+	"github.com/yasumi/yasumi-project-backend/internal/service"
 	"github.com/yasumi/yasumi-project-backend/internal/synctoken"
 	"github.com/yasumi/yasumi-project-backend/internal/telemetry"
 )
@@ -108,6 +110,94 @@ func TestSessionReturnsAuthenticatedUser(t *testing.T) {
 	}
 }
 
+func TestRegisterReturnsInitialSession(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/register", strings.NewReader(`{
+		"username":"yasumi",
+		"email":"user@example.com",
+		"password":"password123"
+	}`))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "password123") {
+		t.Fatal("response leaked raw password")
+	}
+	if !strings.Contains(rec.Body.String(), `"access_token":"access-token"`) {
+		t.Fatalf("body = %s, want access token", rec.Body.String())
+	}
+}
+
+func TestRegisterDuplicateUsernameUsesStableError(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/register", strings.NewReader(`{
+		"username":"taken",
+		"email":"user@example.com",
+		"password":"password123"
+	}`))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusConflict, rec.Body.String())
+	}
+	assertErrorShape(t, rec.Body.Bytes(), "username_already_taken")
+}
+
+func TestLoginInvalidCredentialsAreGeneric(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(`{
+		"identifier":"bad",
+		"password":"wrong-password"
+	}`))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+	assertErrorShape(t, rec.Body.Bytes(), "invalid_credentials")
+}
+
+func TestRefreshReturnsRotatedSession(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/refresh", strings.NewReader(`{"refresh_token":"refresh-token"}`))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"refresh_token":"new-refresh-token"`) {
+		t.Fatalf("body = %s, want rotated refresh token", rec.Body.String())
+	}
+}
+
+func TestLogoutRevokesCurrentSession(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+}
+
 func TestSyncTokenRequiresAuthentication(t *testing.T) {
 	handler := newTestHandler(Readiness{Database: true, Sync: true})
 
@@ -180,6 +270,56 @@ func TestNoBusinessCRUDRoutes(t *testing.T) {
 	}
 }
 
+func TestSyncUploadRequiresAuthentication(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync/upload", strings.NewReader(`{"device_id":"device-01","mutations":[]}`))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	assertErrorShape(t, rec.Body.Bytes(), "unauthorized")
+}
+
+func TestSyncUploadReturnsAcceptedResult(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync/upload", strings.NewReader(`{
+		"client_batch_id":"batch-01",
+		"device_id":"device-01",
+		"mutations":[]
+	}`))
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusAccepted, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"client_batch_id":"batch-01"`) {
+		t.Fatalf("body = %s, want accepted batch", rec.Body.String())
+	}
+}
+
+func TestSyncUploadUsesStableErrorShape(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync/upload", strings.NewReader(`{"device_id":"forbidden"}`))
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+	assertErrorShape(t, rec.Body.Bytes(), "forbidden")
+}
+
 func newTestHandler(readiness Readiness) http.Handler {
 	cfg := config.MustLoad()
 	cfg.HTTP.RequestTimeout = time.Second
@@ -187,7 +327,9 @@ func newTestHandler(readiness Readiness) http.Handler {
 		cfg,
 		telemetry.NewLogger(config.LogConfig{Level: "error", Format: "text"}),
 		fakeAuthenticator{},
+		fakeAccountService{},
 		fakeTokenIssuer{},
+		fakeSyncUploadAcceptor{},
 		staticReadiness{readiness: readiness},
 	)
 }
@@ -211,6 +353,113 @@ func (fakeTokenIssuer) Issue(_ context.Context, userID, deviceID, clientVersion 
 		Value:     "sync-token",
 		ExpiresAt: time.Date(2026, 6, 13, 10, 30, 0, 0, time.UTC),
 		UserID:    userID,
+	}, nil
+}
+
+type fakeAccountService struct{}
+
+func (fakeAccountService) Register(_ context.Context, req auth.RegisterRequest) (auth.AuthResponse, error) {
+	if req.Username == "taken" {
+		return auth.AuthResponse{}, &domain.Error{
+			Code:      domain.ErrorUsernameAlreadyTaken,
+			Message:   "username is already taken",
+			Fields:    map[domain.FieldKey]string{domain.FieldUsername: "already_taken"},
+			Retryable: false,
+		}
+	}
+	displayName := "Test User"
+	return auth.AuthResponse{
+		User: auth.AccountUserDTO{
+			ID:          testUserID,
+			Username:    req.Username,
+			Email:       req.Email,
+			DisplayName: &displayName,
+		},
+		Session: auth.AuthSessionDTO{
+			Authenticated: true,
+			AccessToken:   "access-token",
+			RefreshToken:  "refresh-token",
+			ExpiresAt:     "2026-06-13T10:30:00Z",
+		},
+	}, nil
+}
+
+func (fakeAccountService) Login(_ context.Context, req auth.LoginRequest) (auth.AuthResponse, error) {
+	if req.Identifier == "bad" {
+		return auth.AuthResponse{}, &domain.Error{
+			Code:      domain.ErrorInvalidCredentials,
+			Message:   "invalid credentials",
+			Fields:    map[domain.FieldKey]string{},
+			Retryable: false,
+		}
+	}
+	displayName := "Test User"
+	return auth.AuthResponse{
+		User: auth.AccountUserDTO{
+			ID:          testUserID,
+			Username:    req.Identifier,
+			Email:       "user@example.com",
+			DisplayName: &displayName,
+		},
+		Session: auth.AuthSessionDTO{
+			Authenticated: true,
+			AccessToken:   "access-token",
+			RefreshToken:  "refresh-token",
+			ExpiresAt:     "2026-06-13T10:30:00Z",
+		},
+	}, nil
+}
+
+func (fakeAccountService) Refresh(_ context.Context, refreshToken string) (auth.AuthResponse, error) {
+	if refreshToken == "expired" {
+		return auth.AuthResponse{}, &domain.Error{
+			Code:      domain.ErrorSessionExpired,
+			Message:   "session expired",
+			Fields:    map[domain.FieldKey]string{},
+			Retryable: false,
+		}
+	}
+	displayName := "Test User"
+	return auth.AuthResponse{
+		User: auth.AccountUserDTO{
+			ID:          testUserID,
+			Username:    "yasumi",
+			Email:       "user@example.com",
+			DisplayName: &displayName,
+		},
+		Session: auth.AuthSessionDTO{
+			Authenticated: true,
+			AccessToken:   "new-access-token",
+			RefreshToken:  "new-refresh-token",
+			ExpiresAt:     "2026-06-13T10:30:00Z",
+		},
+	}, nil
+}
+
+func (fakeAccountService) Logout(_ context.Context, token string) error {
+	if token != testToken {
+		return auth.ErrUnauthenticated
+	}
+	return nil
+}
+
+type fakeSyncUploadAcceptor struct{}
+
+func (fakeSyncUploadAcceptor) AcceptUpload(_ context.Context, userID string, upload service.SyncUpload) (service.SyncUploadResult, error) {
+	if userID != testUserID {
+		return service.SyncUploadResult{}, errors.New("wrong user")
+	}
+	if upload.DeviceID == "forbidden" {
+		return service.SyncUploadResult{}, &domain.Error{
+			Code:      domain.ErrorForbidden,
+			Message:   "row is owned by another user",
+			Fields:    map[domain.FieldKey]string{domain.FieldUserID: "owner_mismatch"},
+			Retryable: false,
+		}
+	}
+	return service.SyncUploadResult{
+		ClientBatchID: upload.ClientBatchID,
+		Accepted:      []service.AcceptedWrite{},
 	}, nil
 }
 
