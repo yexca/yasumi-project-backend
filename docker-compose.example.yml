@@ -80,7 +80,7 @@ services:
       VITE_BACKEND_BASE_URL: ${VITE_BACKEND_BASE_URL:-http://127.0.0.1:7659}
       VITE_POWERSYNC_ENDPOINT: ${VITE_POWERSYNC_ENDPOINT:-http://127.0.0.1:8081}
     ports:
-      - "${YASUMI_FRONTEND_HOST_PORT:-5173}:5173"
+      - "${YASUMI_FRONTEND_HOST_PORT:-5173}:80"
     depends_on:
       api:
         condition: service_healthy

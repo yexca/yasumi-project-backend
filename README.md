@@ -108,11 +108,13 @@ PowerSync is optional and can be started with the `sync` profile:
 docker compose -f .\docker-compose.example.yml --profile sync up --build
 ```
 
-The same Compose file can also run the frontend container when this repository is next to `../yasumi-project-frontend`:
+The same Compose file can also run the production-style frontend container when this repository is next to `../yasumi-project-frontend`:
 
 ```powershell
-docker compose -f .\docker-compose.example.yml --profile sync up --build frontend
+docker compose -f .\docker-compose.example.yml up --build frontend
 ```
+
+The frontend is served from `http://localhost:5173` and receives backend and PowerSync URLs through runtime environment values.
 
 `/readyz` reports the configured sync service as unavailable unless PowerSync is reachable. Use `/healthz` when running only PostgreSQL and the API.
 
