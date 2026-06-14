@@ -219,6 +219,57 @@ func TestLogoutRevokesCurrentSession(t *testing.T) {
 	}
 }
 
+func TestProfileUpdateReturnsUser(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/profile", strings.NewReader(`{"display_name":"Quiet Planner"}`))
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"display_name":"Quiet Planner"`) {
+		t.Fatalf("body = %s, want updated display name", rec.Body.String())
+	}
+}
+
+func TestPasswordChangeRequiresAuthAndCurrentPassword(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/profile/password", strings.NewReader(`{
+		"current_password":"old-password",
+		"new_password":"new-password123"
+	}`))
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+}
+
+func TestWeatherUsesSelectedCity(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/weather?city=Tokyo", nil)
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"city":"Tokyo"`) || !strings.Contains(rec.Body.String(), `"unit":"C"`) {
+		t.Fatalf("body = %s, want city weather summary", rec.Body.String())
+	}
+}
+
 func TestSyncTokenRequiresAuthentication(t *testing.T) {
 	handler := newTestHandler(Readiness{Database: true, Sync: true})
 
@@ -524,6 +575,27 @@ func (fakeAccountService) Refresh(_ context.Context, refreshToken string) (auth.
 func (fakeAccountService) Logout(_ context.Context, token string) error {
 	if token != testToken {
 		return auth.ErrUnauthenticated
+	}
+	return nil
+}
+
+func (fakeAccountService) UpdateProfile(_ context.Context, _ string, req auth.UpdateProfileRequest) (auth.AccountUserDTO, error) {
+	return auth.AccountUserDTO{
+		ID:          testUserID,
+		Username:    "yasumi",
+		Email:       "user@example.com",
+		DisplayName: req.DisplayName,
+	}, nil
+}
+
+func (fakeAccountService) ChangePassword(_ context.Context, _ string, req auth.ChangePasswordRequest) error {
+	if req.CurrentPassword == "wrong-password" {
+		return &domain.Error{
+			Code:      domain.ErrorInvalidCredentials,
+			Message:   "invalid credentials",
+			Fields:    map[domain.FieldKey]string{},
+			Retryable: false,
+		}
 	}
 	return nil
 }

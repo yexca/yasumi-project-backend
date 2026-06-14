@@ -42,6 +42,8 @@ type AccountService interface {
 	Login(ctx context.Context, req auth.LoginRequest) (auth.AuthResponse, error)
 	Refresh(ctx context.Context, refreshToken string) (auth.AuthResponse, error)
 	Logout(ctx context.Context, accessToken string) error
+	UpdateProfile(ctx context.Context, userID string, req auth.UpdateProfileRequest) (auth.AccountUserDTO, error)
+	ChangePassword(ctx context.Context, userID string, req auth.ChangePasswordRequest) error
 }
 
 func NewRouter(
@@ -78,6 +80,9 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("POST /v1/auth/logout", r.requireAuth(r.logout))
 	r.mux.HandleFunc("POST /v1/auth/refresh", r.refresh)
 	r.mux.HandleFunc("GET /v1/session", r.requireAuth(r.session))
+	r.mux.HandleFunc("POST /v1/profile", r.requireAuth(r.updateProfile))
+	r.mux.HandleFunc("POST /v1/profile/password", r.requireAuth(r.changePassword))
+	r.mux.HandleFunc("GET /v1/weather", r.requireAuth(r.weather))
 	r.mux.HandleFunc("POST /v1/sync/token", r.requireAuth(r.syncToken))
 	r.mux.HandleFunc("POST /v1/sync/upload", r.requireAuth(r.syncUpload))
 }

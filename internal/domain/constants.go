@@ -195,6 +195,7 @@ const (
 	FieldDefaultTimeZoneMode       FieldKey = "default_time_zone_mode"
 	FieldTodayPrimaryLookaheadDays FieldKey = "today_primary_lookahead_days"
 	FieldDeadlineAwarenessDays     FieldKey = "deadline_awareness_days"
+	FieldWeatherCity               FieldKey = "weather_city"
 )
 
 func IsValidItemType(v ItemType) bool {
@@ -339,6 +340,7 @@ func IsValidFieldKey(v FieldKey) bool {
 		FieldDefaultTimeZoneMode,
 		FieldTodayPrimaryLookaheadDays,
 		FieldDeadlineAwarenessDays,
+		FieldWeatherCity,
 	)
 }
 

@@ -82,10 +82,14 @@ type AccountRepository interface {
 type accountTx interface {
 	CreateAccount(ctx context.Context, user repository.UserRecord, credential repository.CredentialRecord, settings repository.UserSettingsRecord) error
 	FindAccountByIdentifier(ctx context.Context, identifier string) (repository.AccountWithCredentialRecord, error)
+	GetCredentialForUpdate(ctx context.Context, userID string) (repository.CredentialRecord, error)
+	GetUserForUpdate(ctx context.Context, userID string) (repository.UserRecord, error)
 	CreateSession(ctx context.Context, session repository.SessionRecord) error
 	GetActiveSessionWithUserForUpdate(ctx context.Context, sessionID string, now time.Time) (repository.SessionWithUserRecord, error)
 	FindActiveSessionByRefreshHashForUpdate(ctx context.Context, refreshTokenHash string, now time.Time) (repository.SessionWithUserRecord, error)
 	RevokeSession(ctx context.Context, sessionID string, revokedAt time.Time, replacedBySessionID *string) error
+	UpdateCredential(ctx context.Context, credential repository.CredentialRecord) error
+	UpdateUserProfile(ctx context.Context, userID string, displayName *string, updatedAt time.Time) (repository.UserRecord, error)
 }
 
 type RepositoryAdapter struct {
@@ -129,6 +133,15 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Identifier string `json:"identifier"`
 	Password   string `json:"password"`
+}
+
+type UpdateProfileRequest struct {
+	DisplayName *string `json:"display_name"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }
 
 type AuthResponse struct {
@@ -392,6 +405,83 @@ func (s *AccountService) Logout(ctx context.Context, accessToken string) error {
 	})
 }
 
+func (s *AccountService) UpdateProfile(ctx context.Context, userID string, req UpdateProfileRequest) (AccountUserDTO, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return AccountUserDTO{}, ErrUnauthenticated
+	}
+	displayName := normalizeOptionalDisplayName(req.DisplayName)
+	if displayName != nil && len(*displayName) > 120 {
+		return AccountUserDTO{}, validationError("profile is invalid", domain.FieldDisplayName, "too_long")
+	}
+
+	now := s.clock.Now().UTC()
+	var user repository.UserRecord
+	err := s.repo.InTx(ctx, func(ctx context.Context, tx accountTx) error {
+		updated, err := tx.UpdateUserProfile(ctx, userID, displayName, now)
+		if err != nil {
+			return mapAccountRepositoryError(err)
+		}
+		if updated.Status == "disabled" {
+			return accountDisabled()
+		}
+		user = updated
+		return nil
+	})
+	if err != nil {
+		return AccountUserDTO{}, err
+	}
+
+	return accountUserDTO(user), nil
+}
+
+func (s *AccountService) ChangePassword(ctx context.Context, userID string, req ChangePasswordRequest) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return ErrUnauthenticated
+	}
+	if strings.TrimSpace(req.CurrentPassword) == "" {
+		return validationError("password change is invalid", domain.FieldPassword, "current_required")
+	}
+	if err := validatePassword(req.NewPassword); err != nil {
+		return err
+	}
+
+	now := s.clock.Now().UTC()
+	return s.repo.InTx(ctx, func(ctx context.Context, tx accountTx) error {
+		user, err := tx.GetUserForUpdate(ctx, userID)
+		if err != nil {
+			return mapAccountRepositoryError(err)
+		}
+		if user.Status == "disabled" {
+			return accountDisabled()
+		}
+
+		credential, err := tx.GetCredentialForUpdate(ctx, userID)
+		if err != nil {
+			return mapAccountRepositoryError(err)
+		}
+		ok, err := s.hasher.Verify(req.CurrentPassword, credential.PasswordHash, credential.PasswordHashParams)
+		if err != nil || !ok {
+			return invalidCredentials()
+		}
+
+		passwordHash, params, err := s.hasher.Hash(req.NewPassword)
+		if err != nil {
+			return serviceUnavailable("hash password")
+		}
+		credential.PasswordHash = passwordHash
+		credential.PasswordHashAlgorithm = "argon2id"
+		credential.PasswordHashParams = params
+		credential.PasswordChangedAt = now
+		credential.UpdatedAt = now
+		if err := tx.UpdateCredential(ctx, credential); err != nil {
+			return mapAccountRepositoryError(err)
+		}
+		return nil
+	})
+}
+
 func (s *AccountService) Authenticate(ctx context.Context, token string) (User, error) {
 	claims, err := s.parseAccessToken(token)
 	if err != nil {
@@ -436,12 +526,7 @@ func (s *AccountService) authResponse(user repository.UserRecord, sessionID, ref
 		return AuthResponse{}, serviceUnavailable("sign access token")
 	}
 	return AuthResponse{
-		User: AccountUserDTO{
-			ID:          user.ID,
-			Username:    user.Username,
-			Email:       user.Email,
-			DisplayName: user.DisplayName,
-		},
+		User: accountUserDTO(user),
 		Session: AuthSessionDTO{
 			Authenticated: true,
 			AccessToken:   accessToken,
@@ -616,6 +701,17 @@ func normalizeDisplayName(value *string, username string) *string {
 	return &trimmed
 }
 
+func normalizeOptionalDisplayName(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
 func defaultSettings(userID string, now time.Time) repository.UserSettingsRecord {
 	return repository.UserSettingsRecord{
 		UserID:                    userID,
@@ -628,6 +724,7 @@ func defaultSettings(userID string, now time.Time) repository.UserSettingsRecord
 		DefaultTimeZoneMode:       "floating",
 		TodayPrimaryLookaheadDays: 3,
 		DeadlineAwarenessDays:     14,
+		WeatherCity:               "Tokyo",
 		CreatedAt:                 now,
 		UpdatedAt:                 now,
 		ClientUpdatedAt:           now,
@@ -635,6 +732,15 @@ func defaultSettings(userID string, now time.Time) repository.UserSettingsRecord
 		CreatedByDeviceID:         "account-registration",
 		UpdatedByDeviceID:         "account-registration",
 		Revision:                  1,
+	}
+}
+
+func accountUserDTO(user repository.UserRecord) AccountUserDTO {
+	return AccountUserDTO{
+		ID:          user.ID,
+		Username:    user.Username,
+		Email:       user.Email,
+		DisplayName: user.DisplayName,
 	}
 }
 

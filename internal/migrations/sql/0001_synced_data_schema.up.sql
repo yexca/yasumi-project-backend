@@ -215,6 +215,7 @@ create table if not exists user_settings (
 	default_time_zone_mode text not null,
 	today_primary_lookahead_days integer not null default 3,
 	deadline_awareness_days integer not null default 14,
+	weather_city text not null default 'Tokyo',
 	created_at timestamptz not null,
 	updated_at timestamptz not null,
 	client_updated_at timestamptz not null,
@@ -230,7 +231,8 @@ create table if not exists user_settings (
 	constraint user_settings_time_display_format_allowed check (time_display_format in ('12h', '24h')),
 	constraint user_settings_default_tz_mode_allowed check (default_time_zone_mode in ('floating')),
 	constraint user_settings_today_lookahead_positive check (today_primary_lookahead_days > 0),
-	constraint user_settings_deadline_awareness_positive check (deadline_awareness_days > 0)
+	constraint user_settings_deadline_awareness_positive check (deadline_awareness_days > 0),
+	constraint user_settings_weather_city_non_empty check (btrim(weather_city) <> '')
 );
 
 create unique index if not exists areas_unique_active_name

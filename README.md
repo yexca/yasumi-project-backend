@@ -7,7 +7,7 @@ Yasumi Go backend with first-party accounts and the MVP sync validation boundary
 - Go executables at `cmd/yasumi-api` and `cmd/yasumi-migrate`.
 - Internal packages for app wiring, typed config, HTTP routing, structured logging, migrations, and PostgreSQL repository access.
 - Infrastructure endpoints: `GET /healthz` and `GET /readyz`.
-- Direct API endpoints: `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/logout`, `POST /v1/auth/refresh`, `GET /v1/session`, and `POST /v1/sync/token`.
+- Direct API endpoints: `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/logout`, `POST /v1/auth/refresh`, `GET /v1/session`, `POST /v1/profile`, `POST /v1/profile/password`, `GET /v1/weather`, and `POST /v1/sync/token`.
 - Sync upload adapter endpoint: `POST /v1/sync/upload`.
 - Request ID, request timeout, account-backed bearer authentication boundary, stable API error shape, production-safe request logs, `/metrics`, and PowerSync-compatible JWT sync token issuance.
 - Embedded PostgreSQL migrations for account tables, `items`, `recurring_task_templates`, `areas`, `operation_history`, and `user_settings`.
@@ -70,6 +70,9 @@ Create or log in to a local account, then use the returned `access_token` for au
 $auth = Invoke-RestMethod -Uri http://localhost:7659/v1/auth/register -Method Post -ContentType "application/json" -Body "{\"username\":\"local_user\",\"email\":\"local@example.com\",\"password\":\"password123\"}"
 $token = $auth.session.access_token
 curl -H "Authorization: Bearer $token" http://localhost:7659/v1/session
+curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"display_name\":\"Quiet Planner\"}" http://localhost:7659/v1/profile
+curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"current_password\":\"password123\",\"new_password\":\"password456\"}" http://localhost:7659/v1/profile/password
+curl -H "Authorization: Bearer $token" "http://localhost:7659/v1/weather?city=Tokyo"
 curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"device_id\":\"device-01\",\"client_version\":\"0.1.0\"}" http://localhost:7659/v1/sync/token
 curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"client_batch_id\":\"batch-01\",\"device_id\":\"device-01\",\"mutations\":[]}" http://localhost:7659/v1/sync/upload
 ```

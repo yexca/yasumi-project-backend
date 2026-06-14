@@ -465,6 +465,7 @@ func (s *SyncUploadService) acceptUserSettings(ctx context.Context, tx syncTx, u
 		DefaultTimeZoneMode:       domain.DefaultTimeZoneMode(row.DefaultTimeZoneMode),
 		TodayPrimaryLookaheadDays: row.TodayPrimaryLookaheadDays,
 		DeadlineAwarenessDays:     row.DeadlineAwarenessDays,
+		WeatherCity:               row.WeatherCity,
 	}); err != nil {
 		return nil, err
 	}

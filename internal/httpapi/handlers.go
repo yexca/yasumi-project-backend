@@ -138,6 +138,76 @@ func (r *Router) session(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+func (r *Router) updateProfile(w http.ResponseWriter, req *http.Request) {
+	var body auth.UpdateProfileRequest
+	if err := decodeJSON(req, &body); err != nil {
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
+			Code:      string(domain.ErrorValidationFailed),
+			Message:   "invalid profile request",
+			Fields:    map[string]string{"body": "invalid_json"},
+			Retryable: false,
+		})
+		return
+	}
+	user := authenticatedUser(req)
+	result, err := r.accounts.UpdateProfile(req.Context(), user.ID, body)
+	if err != nil {
+		status, apiErr := authOrDomainError(err)
+		r.writeAPIError(w, req, status, apiErr)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": result})
+}
+
+func (r *Router) changePassword(w http.ResponseWriter, req *http.Request) {
+	var body auth.ChangePasswordRequest
+	if err := decodeJSON(req, &body); err != nil {
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
+			Code:      string(domain.ErrorValidationFailed),
+			Message:   "invalid password request",
+			Fields:    map[string]string{"body": "invalid_json"},
+			Retryable: false,
+		})
+		return
+	}
+	user := authenticatedUser(req)
+	if err := r.accounts.ChangePassword(req.Context(), user.ID, body); err != nil {
+		status, apiErr := authOrDomainError(err)
+		r.writeAPIError(w, req, status, apiErr)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (r *Router) weather(w http.ResponseWriter, req *http.Request) {
+	city := strings.TrimSpace(req.URL.Query().Get("city"))
+	if city == "" {
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
+			Code:      string(domain.ErrorValidationFailed),
+			Message:   "city is required",
+			Fields:    map[string]string{"weather_city": "required"},
+			Retryable: false,
+		})
+		return
+	}
+	if len(city) > 120 {
+		r.writeAPIError(w, req, http.StatusBadRequest, apiError{
+			Code:      string(domain.ErrorValidationFailed),
+			Message:   "city is too long",
+			Fields:    map[string]string{"weather_city": "too_long"},
+			Retryable: false,
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"city":        city,
+		"summary":     weatherSummary(city),
+		"temperature": weatherTemperature(city),
+		"unit":        "C",
+	})
+}
+
 func (r *Router) syncToken(w http.ResponseWriter, req *http.Request) {
 	var body syncTokenRequest
 	if req.Body != nil {
@@ -245,6 +315,36 @@ func checkStatus(ok bool) string {
 		return "ok"
 	}
 	return "unavailable"
+}
+
+func weatherSummary(city string) string {
+	switch strings.ToLower(city) {
+	case "tokyo", "東京":
+		return "Partly cloudy"
+	case "shanghai", "上海":
+		return "Humid"
+	case "london":
+		return "Light rain"
+	case "new york", "new york city":
+		return "Clear"
+	default:
+		return "Mild"
+	}
+}
+
+func weatherTemperature(city string) int {
+	switch strings.ToLower(city) {
+	case "tokyo", "東京":
+		return 24
+	case "shanghai", "上海":
+		return 27
+	case "london":
+		return 17
+	case "new york", "new york city":
+		return 22
+	default:
+		return 21
+	}
 }
 
 func (r *Router) recordSyncUploadResult(req *http.Request, result string) {

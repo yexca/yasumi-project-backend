@@ -159,6 +159,7 @@ type UserSettingsRecord struct {
 	DefaultTimeZoneMode       string    `json:"default_time_zone_mode"`
 	TodayPrimaryLookaheadDays int       `json:"today_primary_lookahead_days"`
 	DeadlineAwarenessDays     int       `json:"deadline_awareness_days"`
+	WeatherCity               string    `json:"weather_city"`
 	CreatedAt                 time.Time `json:"created_at"`
 	UpdatedAt                 time.Time `json:"updated_at"`
 	ClientUpdatedAt           time.Time `json:"client_updated_at"`
@@ -292,6 +293,117 @@ func (tx *Tx) FindAccountByIdentifier(ctx context.Context, identifier string) (A
 		return AccountWithCredentialRecord{}, fmt.Errorf("find account by identifier: %w", err)
 	}
 	return row, nil
+}
+
+func (tx *Tx) GetUserForUpdate(ctx context.Context, userID string) (UserRecord, error) {
+	const query = `
+		select id::text, username, email, email_verified_at, display_name,
+			status, created_at, updated_at
+		from users
+		where id = $1
+		for update
+	`
+	var row UserRecord
+	if err := tx.tx.QueryRow(ctx, query, userID).Scan(
+		&row.ID,
+		&row.Username,
+		&row.Email,
+		&row.EmailVerifiedAt,
+		&row.DisplayName,
+		&row.Status,
+		&row.CreatedAt,
+		&row.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return UserRecord{}, ErrNotFound
+		}
+		return UserRecord{}, fmt.Errorf("get user for update: %w", err)
+	}
+	return row, nil
+}
+
+func (tx *Tx) UpdateUserProfile(ctx context.Context, userID string, displayName *string, updatedAt time.Time) (UserRecord, error) {
+	const query = `
+		update users
+		set display_name = $2,
+			updated_at = $3
+		where id = $1
+		returning id::text, username, email, email_verified_at, display_name,
+			status, created_at, updated_at
+	`
+	var row UserRecord
+	if err := tx.tx.QueryRow(ctx, query, userID, displayName, updatedAt).Scan(
+		&row.ID,
+		&row.Username,
+		&row.Email,
+		&row.EmailVerifiedAt,
+		&row.DisplayName,
+		&row.Status,
+		&row.CreatedAt,
+		&row.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return UserRecord{}, ErrNotFound
+		}
+		return UserRecord{}, fmt.Errorf("update user profile: %w", err)
+	}
+	return row, nil
+}
+
+func (tx *Tx) GetCredentialForUpdate(ctx context.Context, userID string) (CredentialRecord, error) {
+	const query = `
+		select user_id::text, password_hash, password_hash_algorithm,
+			password_hash_params, password_changed_at, created_at, updated_at
+		from user_credentials
+		where user_id = $1
+		for update
+	`
+	var row CredentialRecord
+	if err := tx.tx.QueryRow(ctx, query, userID).Scan(
+		&row.UserID,
+		&row.PasswordHash,
+		&row.PasswordHashAlgorithm,
+		&row.PasswordHashParams,
+		&row.PasswordChangedAt,
+		&row.CreatedAt,
+		&row.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return CredentialRecord{}, ErrNotFound
+		}
+		return CredentialRecord{}, fmt.Errorf("get credential for update: %w", err)
+	}
+	return row, nil
+}
+
+func (tx *Tx) UpdateCredential(ctx context.Context, credential CredentialRecord) error {
+	const query = `
+		update user_credentials
+		set password_hash = $2,
+			password_hash_algorithm = $3,
+			password_hash_params = coalesce($4, '{}'::jsonb),
+			password_changed_at = $5,
+			updated_at = $6
+		where user_id = $1
+	`
+	if len(credential.PasswordHashParams) == 0 {
+		credential.PasswordHashParams = []byte("{}")
+	}
+	tag, err := tx.tx.Exec(ctx, query,
+		credential.UserID,
+		credential.PasswordHash,
+		credential.PasswordHashAlgorithm,
+		credential.PasswordHashParams,
+		credential.PasswordChangedAt,
+		credential.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("update credential: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (tx *Tx) CreateSession(ctx context.Context, session SessionRecord) error {
@@ -929,7 +1041,7 @@ func (tx *Tx) GetUserSettingsForUpdate(ctx context.Context, userID string) (User
 	const query = `
 		select user_id::text, language, locale, week_start_day, time_zone,
 			date_display_format, time_display_format, default_time_zone_mode,
-			today_primary_lookahead_days, deadline_awareness_days, created_at, updated_at,
+			today_primary_lookahead_days, deadline_awareness_days, weather_city, created_at, updated_at,
 			client_updated_at, server_updated_at, created_by_device_id,
 			updated_by_device_id, revision
 		from user_settings
@@ -948,6 +1060,7 @@ func (tx *Tx) GetUserSettingsForUpdate(ctx context.Context, userID string) (User
 		&row.DefaultTimeZoneMode,
 		&row.TodayPrimaryLookaheadDays,
 		&row.DeadlineAwarenessDays,
+		&row.WeatherCity,
 		&row.CreatedAt,
 		&row.UpdatedAt,
 		&row.ClientUpdatedAt,
@@ -977,6 +1090,7 @@ func (tx *Tx) UpsertUserSettings(ctx context.Context, row UserSettingsRecord) er
 			default_time_zone_mode,
 			today_primary_lookahead_days,
 			deadline_awareness_days,
+			weather_city,
 			created_at,
 			updated_at,
 			client_updated_at,
@@ -984,7 +1098,7 @@ func (tx *Tx) UpsertUserSettings(ctx context.Context, row UserSettingsRecord) er
 			created_by_device_id,
 			updated_by_device_id,
 			revision
-		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		on conflict (user_id) do update set
 			language = excluded.language,
 			locale = excluded.locale,
@@ -995,6 +1109,7 @@ func (tx *Tx) UpsertUserSettings(ctx context.Context, row UserSettingsRecord) er
 			default_time_zone_mode = excluded.default_time_zone_mode,
 			today_primary_lookahead_days = excluded.today_primary_lookahead_days,
 			deadline_awareness_days = excluded.deadline_awareness_days,
+			weather_city = excluded.weather_city,
 			updated_at = excluded.updated_at,
 			client_updated_at = excluded.client_updated_at,
 			server_updated_at = excluded.server_updated_at,
@@ -1012,6 +1127,7 @@ func (tx *Tx) UpsertUserSettings(ctx context.Context, row UserSettingsRecord) er
 		row.DefaultTimeZoneMode,
 		row.TodayPrimaryLookaheadDays,
 		row.DeadlineAwarenessDays,
+		row.WeatherCity,
 		row.CreatedAt,
 		row.UpdatedAt,
 		row.ClientUpdatedAt,

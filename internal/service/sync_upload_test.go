@@ -231,6 +231,7 @@ func TestAcceptUploadAssignsSettingsRevisionFromServerState(t *testing.T) {
 			DefaultTimeZoneMode:       "floating",
 			TodayPrimaryLookaheadDays: 3,
 			DeadlineAwarenessDays:     14,
+			WeatherCity:               "Tokyo",
 			CreatedAt:                 fixedNow.Add(-2 * time.Hour),
 			CreatedByDeviceID:         serviceDevice,
 			Revision:                  7,
@@ -254,6 +255,7 @@ func TestAcceptUploadAssignsSettingsRevisionFromServerState(t *testing.T) {
 				"default_time_zone_mode":"floating",
 				"today_primary_lookahead_days":4,
 				"deadline_awareness_days":14,
+				"weather_city":"Tokyo",
 				"revision":1
 			}`),
 		}},

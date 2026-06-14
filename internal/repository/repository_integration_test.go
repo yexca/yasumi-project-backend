@@ -308,6 +308,7 @@ func TestRepositoryOperationIdempotencyLookupAndSettingsUpsert(t *testing.T) {
 			DefaultTimeZoneMode:       "floating",
 			TodayPrimaryLookaheadDays: 3,
 			DeadlineAwarenessDays:     14,
+			WeatherCity:               "Tokyo",
 			CreatedAt:                 now,
 			UpdatedAt:                 now,
 			ClientUpdatedAt:           now,

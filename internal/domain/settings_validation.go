@@ -14,6 +14,7 @@ type Settings struct {
 	DefaultTimeZoneMode       DefaultTimeZoneMode
 	TodayPrimaryLookaheadDays int
 	DeadlineAwarenessDays     int
+	WeatherCity               string
 }
 
 func DefaultSettings(language LanguageCode, deviceTimeZone string) Settings {
@@ -34,6 +35,7 @@ func DefaultSettings(language LanguageCode, deviceTimeZone string) Settings {
 		DefaultTimeZoneMode:       DefaultTimeZoneModeFloating,
 		TodayPrimaryLookaheadDays: 3,
 		DeadlineAwarenessDays:     14,
+		WeatherCity:               "Tokyo",
 	}
 	return settings
 }
@@ -96,6 +98,9 @@ func ValidateSettings(settings Settings) *Error {
 	}
 	if settings.DeadlineAwarenessDays < 0 {
 		err.addField(FieldDeadlineAwarenessDays, "must_be_non_negative")
+	}
+	if settings.WeatherCity != "" && len(settings.WeatherCity) > 120 {
+		err.addField(FieldWeatherCity, "too_long")
 	}
 
 	if err.hasFields() {
