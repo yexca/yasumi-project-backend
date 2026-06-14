@@ -8,6 +8,7 @@ Date: 2026-06-13
 - Run migrations with `/usr/local/bin/yasumi-migrate` before starting `/usr/local/bin/yasumi-api`.
 - Run PostgreSQL with logical WAL enabled for PowerSync.
 - Run PowerSync with `env/powersync/service.yaml` and `env/powersync/sync-config.yaml`.
+- For local validation, the root `docker-compose.example.yml` builds the image, starts PostgreSQL, runs migrations, starts the API, and can start PowerSync with the `sync` profile.
 
 ## Required Configuration
 
@@ -16,8 +17,14 @@ Set these values explicitly outside local development:
 - `YASUMI_APP_ENV`
 - `YASUMI_HTTP_HOST`
 - `YASUMI_HTTP_PORT`
+- `YASUMI_HTTP_READ_HEADER_TIMEOUT`
+- `YASUMI_HTTP_SHUTDOWN_TIMEOUT`
+- `YASUMI_HTTP_REQUEST_TIMEOUT`
 - `YASUMI_LOG_LEVEL`
 - `YASUMI_LOG_FORMAT`
+- `YASUMI_AUTH_DEV_TOKEN`
+- `YASUMI_AUTH_DEV_USER_ID`
+- `YASUMI_AUTH_DEV_DISPLAY_NAME`
 - `YASUMI_SYNC_TOKEN_SECRET`
 - `YASUMI_SYNC_TOKEN_TTL`
 - `YASUMI_POSTGRES_HOST`
@@ -29,6 +36,10 @@ Set these values explicitly outside local development:
 - `YASUMI_POWERSYNC_URL`
 
 Do not use the local default sync-token secret outside local development.
+
+Root Docker Compose reads `.env` automatically for interpolation when run from the repository root. The application binary does not load `.env` files directly; the final runtime environment must be supplied by the process manager, container platform, or Docker Compose.
+
+Use `.env.example` only as a local template. Do not store production credentials in repository files.
 
 ## Health Checks
 

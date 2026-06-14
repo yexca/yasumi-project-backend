@@ -13,8 +13,9 @@ Yasumi Go backend with first-party accounts and the MVP sync validation boundary
 - Embedded PostgreSQL migrations for account tables, `items`, `recurring_task_templates`, `areas`, `operation_history`, and `user_settings`.
 - Repository transaction support and explicit user-scoped query/write methods.
 - Service-layer sync upload validation for ownership, item shapes, semantic item transitions, idempotency, server timestamps, and revisions.
-- Local environment files under `env/`.
+- Local environment examples at `.env.example` and `env/local.env.example`.
 - Dockerfile for the API runtime and migration command.
+- Root `docker-compose.example.yml` for building and running the local stack from the repository root.
 
 No MVP business CRUD routes are implemented. Synced business writes enter through the sync upload boundary.
 
@@ -56,39 +57,58 @@ docker run --rm -v "${PWD}:/src" -w /src golang:1.23-alpine go vet ./...
 Then open:
 
 ```text
-http://localhost:7650/healthz
-http://localhost:7650/readyz
-http://localhost:7650/metrics
+http://localhost:7659/healthz
+http://localhost:7659/readyz
+http://localhost:7659/metrics
 ```
 
 Create or log in to a local account, then use the returned `access_token` for authenticated calls:
 
 ```powershell
-$auth = Invoke-RestMethod -Uri http://localhost:7650/v1/auth/register -Method Post -ContentType "application/json" -Body "{\"username\":\"local_user\",\"email\":\"local@example.com\",\"password\":\"password123\"}"
+$auth = Invoke-RestMethod -Uri http://localhost:7659/v1/auth/register -Method Post -ContentType "application/json" -Body "{\"username\":\"local_user\",\"email\":\"local@example.com\",\"password\":\"password123\"}"
 $token = $auth.session.access_token
-curl -H "Authorization: Bearer $token" http://localhost:7650/v1/session
-curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"device_id\":\"device-01\",\"client_version\":\"0.1.0\"}" http://localhost:7650/v1/sync/token
-curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"client_batch_id\":\"batch-01\",\"device_id\":\"device-01\",\"mutations\":[]}" http://localhost:7650/v1/sync/upload
+curl -H "Authorization: Bearer $token" http://localhost:7659/v1/session
+curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"device_id\":\"device-01\",\"client_version\":\"0.1.0\"}" http://localhost:7659/v1/sync/token
+curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"client_batch_id\":\"batch-01\",\"device_id\":\"device-01\",\"mutations\":[]}" http://localhost:7659/v1/sync/upload
 ```
 
 ## Docker Local Environment
 
+The recommended root-level example is:
+
 ```powershell
-docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml up --build
+Copy-Item .env.example .env
+docker compose -f .\docker-compose.example.yml up --build
 ```
 
-The default compose stack starts PostgreSQL, applies migrations, and starts the API.
+Docker Compose automatically reads the root `.env` file when commands are run from this repository root. The `.env` file is ignored by Git and Docker build contexts; keep local secrets there and commit only `.env.example`.
+
+The root compose stack starts PostgreSQL, applies migrations, and starts the API. It exposes:
+
+```text
+http://localhost:7659/healthz
+http://localhost:7659/readyz
+http://localhost:7659/metrics
+```
 
 To apply migrations directly:
 
 ```powershell
-docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml run --rm migrate
+docker compose -f .\docker-compose.example.yml run --rm migrate
 ```
 
-PowerSync is configured with the official `journeyapps/powersync-service` image and can be started when sync work begins:
+PowerSync is optional and can be started with the `sync` profile:
 
 ```powershell
-docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml --profile sync up --build
+docker compose -f .\docker-compose.example.yml --profile sync up --build
+```
+
+`/readyz` reports the configured sync service as unavailable unless PowerSync is reachable. Use `/healthz` when running only PostgreSQL and the API.
+
+The older project-local development compose file remains available:
+
+```powershell
+docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml up --build
 ```
 
 PowerSync service wiring includes user-scoped Sync Streams for MVP synced tables and a local HS256 development key matching `YASUMI_SYNC_TOKEN_SECRET`. `/readyz` reports the configured sync service as unavailable unless that dependency is reachable.
@@ -97,7 +117,9 @@ The Docker toolchain mounts `../dev_documents` read-only as `/dev_documents` so 
 
 ## Configuration
 
-Configuration is read once at startup from environment variables. See `env/local.env.example` for the supported keys.
+Configuration is read once at startup from environment variables. See `.env.example` for the root Docker Compose defaults and `env/local.env.example` for the older `env/docker-compose.yml` workflow.
+
+The application binary does not load `.env` files by itself. Docker Compose reads the root `.env` file for interpolation, then passes the configured values into the containers.
 
 Invalid configuration fails fast with a startup error.
 

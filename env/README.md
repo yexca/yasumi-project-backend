@@ -45,6 +45,6 @@ The API image includes both:
 Create a local account before calling authenticated routes:
 
 ```powershell
-$auth = Invoke-RestMethod -Uri http://localhost:7650/v1/auth/register -Method Post -ContentType "application/json" -Body "{\"username\":\"local_user\",\"email\":\"local@example.com\",\"password\":\"password123\"}"
-curl -H "Authorization: Bearer $($auth.session.access_token)" http://localhost:7650/v1/session
+$auth = Invoke-RestMethod -Uri http://localhost:7659/v1/auth/register -Method Post -ContentType "application/json" -Body "{\"username\":\"local_user\",\"email\":\"local@example.com\",\"password\":\"password123\"}"
+curl -H "Authorization: Bearer $($auth.session.access_token)" http://localhost:7659/v1/session
 ```

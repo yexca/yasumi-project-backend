@@ -76,7 +76,7 @@ type PowerSyncConfig struct {
 }
 
 func Load() (Config, error) {
-	httpPort, httpPortErr := getInt("YASUMI_HTTP_PORT", 7650)
+	httpPort, httpPortErr := getInt("YASUMI_HTTP_PORT", 7659)
 	readHeaderTimeout, readHeaderTimeoutErr := getDuration("YASUMI_HTTP_READ_HEADER_TIMEOUT", 5*time.Second)
 	shutdownTimeout, shutdownTimeoutErr := getDuration("YASUMI_HTTP_SHUTDOWN_TIMEOUT", 10*time.Second)
 	requestTimeout, requestTimeoutErr := getDuration("YASUMI_HTTP_REQUEST_TIMEOUT", 10*time.Second)

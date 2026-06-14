@@ -10,8 +10,8 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.HTTP.Port != 7650 {
-		t.Fatalf("HTTP.Port = %d, want 7650", cfg.HTTP.Port)
+	if cfg.HTTP.Port != 7659 {
+		t.Fatalf("HTTP.Port = %d, want 7659", cfg.HTTP.Port)
 	}
 	if cfg.Postgres.Database != "yasumi" {
 		t.Fatalf("Postgres.Database = %q, want yasumi", cfg.Postgres.Database)

@@ -3,5 +3,6 @@
 .vscode/
 legacy/
 env/local.env
+.env
 *.log
 coverage.out

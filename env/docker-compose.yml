@@ -75,7 +75,7 @@ services:
       YASUMI_POWERSYNC_URL: http://powersync:8080
       YASUMI_LOG_FORMAT: json
     ports:
-      - "7650:7650"
+      - "7659:7659"
     depends_on:
       migrate:
         condition: service_completed_successfully

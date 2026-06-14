@@ -65,9 +65,9 @@ Observed runtime results:
 - `/v1/sync/token` returned `stream_scope.user_id` as the authenticated user, not the client-supplied user.
 - `/readyz` returned `503` with `database: ok` and `sync: unavailable` when PowerSync was not running.
 
-After this verification pass, the backend default HTTP port was changed from `8080` to `7650` to avoid the local `8080` conflict. Runtime configuration, Docker exposure, compose port mapping, and local documentation were updated together.
+After this verification pass, the backend default HTTP port was changed from `8080` to `7659` to avoid local port conflicts. Runtime configuration, Docker exposure, compose port mapping, and local documentation were updated together.
 
-The updated compose API service was also started on `http://localhost:7650`; `/healthz`, `/v1/session`, `/v1/sync/token`, and `/readyz` behaved as expected on the new default port.
+The updated compose API service was also started on `http://localhost:7659`; `/healthz`, `/v1/session`, `/v1/sync/token`, and `/readyz` behaved as expected on the new default port.
 
 ## Notes
 
