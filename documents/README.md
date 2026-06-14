@@ -20,7 +20,7 @@ Documents in this directory must not include real credentials, private keys, acc
 
 ## Local Runtime References
 
-- Root `../docker-compose.example.yml` is the preferred example for building and running PostgreSQL, migrations, the API, and optional PowerSync from the repository root.
+- Root `../docker-compose.example.yml` is the preferred example for building and running PostgreSQL, PowerSync infrastructure, migrations, and the API from the repository root.
 - Root `../.env.example` documents the Docker Compose interpolation values used by the root compose example.
 - `../env/docker-compose.yml` remains available for the project-local Go toolchain and the older local stack workflow.
 

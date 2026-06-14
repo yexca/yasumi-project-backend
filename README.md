@@ -88,7 +88,7 @@ docker compose -f .\docker-compose.example.yml up --build
 
 Docker Compose automatically reads the root `.env` file when commands are run from this repository root. The `.env` file is ignored by Git and Docker build contexts; keep local secrets there and commit only `.env.example`.
 
-The root compose stack starts PostgreSQL, applies migrations, and starts the API. It exposes:
+The root compose stack starts PostgreSQL, MongoDB for PowerSync, PowerSync, applies migrations, and starts the API. It exposes:
 
 ```text
 http://localhost:7659/healthz
@@ -102,21 +102,21 @@ To apply migrations directly:
 docker compose -f .\docker-compose.example.yml run --rm migrate
 ```
 
-PowerSync is optional and can be started with the `sync` profile:
+The same command brings up the required PowerSync infrastructure for local sync validation:
 
 ```powershell
-docker compose -f .\docker-compose.example.yml --profile sync up --build
+docker compose -f .\docker-compose.example.yml up --build
 ```
 
 The same Compose file can also run the production-style frontend container when this repository is next to `../yasumi-project-frontend`:
 
 ```powershell
-docker compose -f .\docker-compose.example.yml up --build frontend
+docker compose -f .\docker-compose.example.yml --profile frontend up --build
 ```
 
 The frontend is served from `http://localhost:5173` and receives backend and PowerSync URLs through runtime environment values.
 
-`/readyz` reports the configured sync service as unavailable unless PowerSync is reachable. Use `/healthz` when running only PostgreSQL and the API.
+`/readyz` reports the configured sync service as unavailable until PowerSync is reachable. Use `/healthz` if you are intentionally validating only process liveness.
 
 The older project-local development compose file remains available:
 
@@ -124,7 +124,7 @@ The older project-local development compose file remains available:
 docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml up --build
 ```
 
-PowerSync service wiring includes user-scoped Sync Streams for MVP synced tables and a local HS256 development key matching `YASUMI_SYNC_TOKEN_SECRET`. `/readyz` reports the configured sync service as unavailable unless that dependency is reachable.
+PowerSync service wiring includes user-scoped Sync Streams for MVP synced tables and a local HS256 development key matching `YASUMI_SYNC_TOKEN_SECRET`. The default local stack now treats PowerSync as required infrastructure, so `/readyz` should become healthy only after that dependency is reachable.
 
 The Docker toolchain mounts `../dev_documents` read-only as `/dev_documents` so fixture and shared-constant compatibility tests run with the same contract documents used during development.
 

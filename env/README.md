@@ -33,7 +33,7 @@ The production-style runtime is built from the repository root `Dockerfile`.
 
 ## Local Services
 
-`docker-compose.yml` defines PostgreSQL, a one-shot `migrate` service, the API, and an optional PowerSync profile for later sync phases.
+`docker-compose.yml` defines PostgreSQL, MongoDB for PowerSync, PowerSync, a one-shot `migrate` service, and the API.
 
 The API image includes both:
 

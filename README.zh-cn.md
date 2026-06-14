@@ -47,7 +47,7 @@ docker compose -f .\docker-compose.example.yml up --build
 
 从项目根目录执行 Docker Compose 时，Compose 会自动读取根目录 `.env` 用于变量替换。`.env` 已被 Git 和 Docker build context 忽略，本地密钥应放在 `.env`，只提交 `.env.example`。
 
-默认服务栈会启动 PostgreSQL，执行数据库迁移，然后启动 API。
+默认服务栈会启动 PostgreSQL、PowerSync 所需的 MongoDB、PowerSync，自带执行数据库迁移，然后启动 API。
 
 可访问：
 
@@ -65,21 +65,21 @@ http://localhost:7659/metrics
 docker compose -f .\docker-compose.example.yml run --rm migrate
 ```
 
-PowerSync 是可选服务，可通过 `sync` profile 启动：
+默认命令会一并启动本地同步验证所需的 PowerSync 基础设施：
 
 ```powershell
-docker compose -f .\docker-compose.example.yml --profile sync up --build
+docker compose -f .\docker-compose.example.yml up --build
 ```
 
 当前端仓库位于相邻目录 `../yasumi-project-frontend` 时，同一个 Compose 文件也可以启动前端容器：
 
 ```powershell
-docker compose -f .\docker-compose.example.yml --profile sync up --build frontend
+docker compose -f .\docker-compose.example.yml --profile frontend up --build
 ```
 
-如果只启动 PostgreSQL 和 API，`/healthz` 会正常返回；`/readyz` 会因为 PowerSync 不可达而显示未就绪。
+`/readyz` 会在 PowerSync 可达后才返回就绪；如果只想看进程是否存活，使用 `/healthz`。
 
-旧的 `env/docker-compose.yml` 开发环境仍然可用：
+旧的 `env/docker-compose.yml` 开发环境仍然可用，且现在同样默认包含 PowerSync 基础设施：
 
 ```powershell
 docker compose --env-file .\env\local.env.example -f .\env\docker-compose.yml up --build

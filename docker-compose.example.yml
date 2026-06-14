@@ -66,6 +66,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      powersync:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${YASUMI_HTTP_PORT}/healthz >/dev/null"]
       interval: 10s
@@ -76,6 +78,7 @@ services:
     build:
       context: ../yasumi-project-frontend
       dockerfile: env/Dockerfile
+    profiles: ["frontend"]
     environment:
       VITE_BACKEND_BASE_URL: ${VITE_BACKEND_BASE_URL:-http://127.0.0.1:7659}
       VITE_POWERSYNC_ENDPOINT: ${VITE_POWERSYNC_ENDPOINT:-http://127.0.0.1:8081}
@@ -87,7 +90,6 @@ services:
 
   powersync:
     image: journeyapps/powersync-service:latest
-    profiles: ["sync"]
     command: ["start", "-r", "unified"]
     volumes:
       - ./env/powersync/service.yaml:/config/service.yaml:ro
@@ -104,14 +106,12 @@ services:
 
   mongo:
     image: mongo:7.0
-    profiles: ["sync"]
     command: --replSet rs0 --bind_ip_all --quiet
     volumes:
       - yasumi-powersync-mongo-data:/data/db
 
   mongo-rs-init:
     image: mongo:7.0
-    profiles: ["sync"]
     depends_on:
       - mongo
     restart: "no"

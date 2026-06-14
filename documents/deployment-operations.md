@@ -8,7 +8,7 @@ Date: 2026-06-13
 - Run migrations with `/usr/local/bin/yasumi-migrate` before starting `/usr/local/bin/yasumi-api`.
 - Run PostgreSQL with logical WAL enabled for PowerSync.
 - Run PowerSync with `env/powersync/service.yaml` and `env/powersync/sync-config.yaml`.
-- For local validation, the root `docker-compose.example.yml` builds the image, starts PostgreSQL, runs migrations, starts the API, and can start PowerSync with the `sync` profile.
+- For local validation, the root `docker-compose.example.yml` builds the image, starts PostgreSQL and the required PowerSync infrastructure, runs migrations, and starts the API.
 
 ## Required Configuration
 
