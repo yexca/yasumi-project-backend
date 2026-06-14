@@ -4,6 +4,7 @@ x-yasumi-environment: &yasumi-environment
   YASUMI_APP_ENV: ${YASUMI_APP_ENV:-local}
   YASUMI_HTTP_HOST: 0.0.0.0
   YASUMI_HTTP_PORT: ${YASUMI_HTTP_PORT:-7659}
+  YASUMI_HTTP_ALLOWED_ORIGINS: ${YASUMI_HTTP_ALLOWED_ORIGINS:-http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4175,http://localhost:4175}
   YASUMI_HTTP_READ_HEADER_TIMEOUT: ${YASUMI_HTTP_READ_HEADER_TIMEOUT:-5s}
   YASUMI_HTTP_SHUTDOWN_TIMEOUT: ${YASUMI_HTTP_SHUTDOWN_TIMEOUT:-10s}
   YASUMI_HTTP_REQUEST_TIMEOUT: ${YASUMI_HTTP_REQUEST_TIMEOUT:-10s}
@@ -70,6 +71,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  frontend:
+    build:
+      context: ../yasumi-project-frontend
+      dockerfile: env/Dockerfile
+    environment:
+      VITE_BACKEND_BASE_URL: ${VITE_BACKEND_BASE_URL:-http://127.0.0.1:7659}
+      VITE_POWERSYNC_ENDPOINT: ${VITE_POWERSYNC_ENDPOINT:-http://127.0.0.1:8081}
+    ports:
+      - "${YASUMI_FRONTEND_HOST_PORT:-5173}:5173"
+    depends_on:
+      api:
+        condition: service_healthy
 
   powersync:
     image: journeyapps/powersync-service:latest

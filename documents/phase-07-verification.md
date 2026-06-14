@@ -25,6 +25,7 @@ The backend now has release-hardening coverage for fixture compatibility, offlin
 - Delete-versus-edit conflict keeps the tombstone until explicit restore.
 - Duplicate postponed activation returns the existing accepted result.
 - Expected MVP query indexes are present after migrations.
+- Account registration and refresh sessions are explicitly verified to expire 30 days after issuance.
 - Active backend endpoints, migrations, and environment configuration do not implement calendar integration.
 - Deployment operations and release checklist are documented.
 

@@ -13,8 +13,27 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.HTTP.Port != 7659 {
 		t.Fatalf("HTTP.Port = %d, want 7659", cfg.HTTP.Port)
 	}
+	if len(cfg.HTTP.AllowedOrigins) == 0 {
+		t.Fatal("HTTP.AllowedOrigins is empty")
+	}
 	if cfg.Postgres.Database != "yasumi" {
 		t.Fatalf("Postgres.Database = %q, want yasumi", cfg.Postgres.Database)
+	}
+}
+
+func TestLoadParsesAllowedOrigins(t *testing.T) {
+	t.Setenv("YASUMI_HTTP_ALLOWED_ORIGINS", " http://127.0.0.1:5173, ,http://localhost:4175 ")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if got, want := len(cfg.HTTP.AllowedOrigins), 2; got != want {
+		t.Fatalf("len(AllowedOrigins) = %d, want %d", got, want)
+	}
+	if cfg.HTTP.AllowedOrigins[0] != "http://127.0.0.1:5173" {
+		t.Fatalf("AllowedOrigins[0] = %q", cfg.HTTP.AllowedOrigins[0])
 	}
 }
 

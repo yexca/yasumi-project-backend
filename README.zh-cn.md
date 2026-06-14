@@ -57,6 +57,8 @@ http://localhost:7659/readyz
 http://localhost:7659/metrics
 ```
 
+本地前端默认请求 `http://127.0.0.1:7659`。如果从其他源访问前端，请把对应源加入 `YASUMI_HTTP_ALLOWED_ORIGINS`。
+
 单独执行迁移：
 
 ```powershell
@@ -67,6 +69,12 @@ PowerSync 是可选服务，可通过 `sync` profile 启动：
 
 ```powershell
 docker compose -f .\docker-compose.example.yml --profile sync up --build
+```
+
+当前端仓库位于相邻目录 `../yasumi-project-frontend` 时，同一个 Compose 文件也可以启动前端容器：
+
+```powershell
+docker compose -f .\docker-compose.example.yml --profile sync up --build frontend
 ```
 
 如果只启动 PostgreSQL 和 API，`/healthz` 会正常返回；`/readyz` 会因为 PowerSync 不可达而显示未就绪。

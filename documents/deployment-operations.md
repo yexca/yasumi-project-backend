@@ -17,6 +17,7 @@ Set these values explicitly outside local development:
 - `YASUMI_APP_ENV`
 - `YASUMI_HTTP_HOST`
 - `YASUMI_HTTP_PORT`
+- `YASUMI_HTTP_ALLOWED_ORIGINS`
 - `YASUMI_HTTP_READ_HEADER_TIMEOUT`
 - `YASUMI_HTTP_SHUTDOWN_TIMEOUT`
 - `YASUMI_HTTP_REQUEST_TIMEOUT`
@@ -55,6 +56,7 @@ Readiness returns `503` until every required dependency is available.
 - Verify `/readyz` reports `database: ok` and `sync: ok`.
 - Verify `/metrics` includes `yasumi_dependency_ready{dependency="database"} 1` and `yasumi_dependency_ready{dependency="sync"} 1` after a readiness probe.
 - Register a test account, log in, refresh, log out, and confirm revoked sessions fail.
+- Confirm auth responses expose 30-day refresh/session expiry while access tokens remain short-lived.
 - Request a sync token and confirm `stream_scope.user_id` is the authenticated internal user id.
 - Send an empty sync upload batch and confirm it returns `202`.
 - Confirm logs contain request ids, route labels, status codes, and stable error codes only.

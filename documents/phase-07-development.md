@@ -16,6 +16,7 @@ Implemented `backend_coding_guide/08-phase-07-hardening-release.md`: backend har
 - Added PowerSync rule tests verifying every synced MVP table is scoped by `auth.user_id()`.
 - Added future-scope guardrail test that active backend code and environment files do not implement calendar integration.
 - Added offline conflict tests for restore, delete-versus-edit tombstone precedence, duplicate postponed activation, and settings last-write-wins coverage already present in sync upload tests.
+- Added explicit account-session coverage that login/registration refresh continuity uses a 30-day refresh session while access tokens remain short-lived.
 - Added database index verification for expected MVP query paths.
 - Updated the Docker toolchain environment to mount `dev_documents` read-only at `/dev_documents` and set `YASUMI_CONTRACTS_DIR`.
 - Documented deployment configuration, operational checks, known limitations, and the MVP release checklist.

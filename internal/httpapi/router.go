@@ -83,5 +83,5 @@ func (r *Router) routes() {
 }
 
 func (r *Router) middleware(next http.Handler) http.Handler {
-	return requestIDMiddleware(timeoutMiddleware(r.cfg.HTTP.RequestTimeout, r.observabilityMiddleware(next)))
+	return requestIDMiddleware(timeoutMiddleware(r.cfg.HTTP.RequestTimeout, r.corsMiddleware(r.observabilityMiddleware(next))))
 }

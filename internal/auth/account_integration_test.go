@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -15,6 +16,30 @@ import (
 	"github.com/yasumi/yasumi-project-backend/internal/migrations"
 	"github.com/yasumi/yasumi-project-backend/internal/repository"
 )
+
+func TestAccountSessionContinuityUsesThirtyDayRefreshSession(t *testing.T) {
+	pool := newTestPool(t)
+	now := time.Date(2026, 6, 14, 8, 30, 0, 0, time.UTC)
+	service := newAccountServiceWithClock(pool, fixedClock{now: now})
+	ctx := context.Background()
+
+	registered, err := service.Register(ctx, auth.RegisterRequest{
+		Username: "session_user",
+		Email:    "session@example.com",
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	assertSessionExpiresAt(t, registered.Session.ExpiresAt, now.Add(30*24*time.Hour))
+
+	refreshed, err := service.Refresh(ctx, registered.Session.RefreshToken)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	assertSessionExpiresAt(t, refreshed.Session.ExpiresAt, now.Add(30*24*time.Hour))
+}
 
 func TestAccountRegisterLoginRefreshAndLogout(t *testing.T) {
 	pool := newTestPool(t)
@@ -178,9 +203,32 @@ func assertAccountRows(t *testing.T, pool *pgxpool.Pool, userID, rawPassword, ra
 }
 
 func newAccountService(pool *pgxpool.Pool) *auth.AccountService {
+	return newAccountServiceWithClock(pool, auth.SystemClock{})
+}
+
+func newAccountServiceWithClock(pool *pgxpool.Pool, clock auth.Clock) *auth.AccountService {
 	cfg := config.MustLoad()
 	cfg.SyncToken.Secret = "test-account-secret"
-	return auth.NewAccountService(auth.NewRepositoryAdapter(repository.New(pool)), cfg, auth.SystemClock{})
+	return auth.NewAccountService(auth.NewRepositoryAdapter(repository.New(pool)), cfg, clock)
+}
+
+type fixedClock struct {
+	now time.Time
+}
+
+func (c fixedClock) Now() time.Time {
+	return c.now
+}
+
+func assertSessionExpiresAt(t *testing.T, got string, want time.Time) {
+	t.Helper()
+	parsed, err := time.Parse(time.RFC3339, got)
+	if err != nil {
+		t.Fatalf("parse session expiry %q: %v", got, err)
+	}
+	if !parsed.Equal(want) {
+		t.Fatalf("session expires at %s, want %s", parsed, want)
+	}
 }
 
 func newTestPool(t *testing.T) *pgxpool.Pool {

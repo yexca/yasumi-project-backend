@@ -62,6 +62,8 @@ http://localhost:7659/readyz
 http://localhost:7659/metrics
 ```
 
+The local frontend defaults to `http://127.0.0.1:7659` for direct API calls. If you serve the frontend from a different origin, add that origin to `YASUMI_HTTP_ALLOWED_ORIGINS`.
+
 Create or log in to a local account, then use the returned `access_token` for authenticated calls:
 
 ```powershell
@@ -101,6 +103,12 @@ PowerSync is optional and can be started with the `sync` profile:
 
 ```powershell
 docker compose -f .\docker-compose.example.yml --profile sync up --build
+```
+
+The same Compose file can also run the frontend container when this repository is next to `../yasumi-project-frontend`:
+
+```powershell
+docker compose -f .\docker-compose.example.yml --profile sync up --build frontend
 ```
 
 `/readyz` reports the configured sync service as unavailable unless PowerSync is reachable. Use `/healthz` when running only PostgreSQL and the API.

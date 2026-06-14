@@ -41,6 +41,25 @@ func TestHealthzIsPublic(t *testing.T) {
 	}
 }
 
+func TestCORSAllowsLocalFrontendPreflight(t *testing.T) {
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodOptions, "/v1/session", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:5173")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+	req.Header.Set("Access-Control-Request-Headers", "Authorization")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://127.0.0.1:5173" {
+		t.Fatalf("Access-Control-Allow-Origin = %q", got)
+	}
+}
+
 func TestReadyzReportsDependencies(t *testing.T) {
 	for _, tt := range []struct {
 		name       string

@@ -24,6 +24,7 @@ type Config struct {
 type HTTPConfig struct {
 	Host              string
 	Port              int
+	AllowedOrigins    []string
 	ReadHeaderTimeout time.Duration
 	ShutdownTimeout   time.Duration
 	RequestTimeout    time.Duration
@@ -98,6 +99,7 @@ func Load() (Config, error) {
 		HTTP: HTTPConfig{
 			Host:              getString("YASUMI_HTTP_HOST", "0.0.0.0"),
 			Port:              httpPort,
+			AllowedOrigins:    getCSV("YASUMI_HTTP_ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4175,http://localhost:4175"),
 			ReadHeaderTimeout: readHeaderTimeout,
 			ShutdownTimeout:   shutdownTimeout,
 			RequestTimeout:    requestTimeout,
@@ -211,6 +213,22 @@ func getString(name, fallback string) string {
 		return fallback
 	}
 	return strings.TrimSpace(value)
+}
+
+func getCSV(name, fallback string) []string {
+	raw := getString(name, fallback)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		value := strings.TrimSpace(part)
+		if value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
 }
 
 func getInt(name string, fallback int) (int, error) {
