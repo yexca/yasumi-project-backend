@@ -44,7 +44,7 @@ Date: 2026-06-13
 - [ ] `/readyz` returns `200` with PostgreSQL and PowerSync available.
 - [ ] `/readyz` fails clearly with generic dependency labels when a dependency is unavailable.
 - [ ] `/metrics` exposes request failure, validation rejection, sync upload result, auth failure, and dependency readiness counters.
-- [ ] Deployment configuration is documented in `documents/deployment-operations.md`.
+- [ ] Deployment configuration is documented in `deployment-operations.md`.
 
 ## Future-Scope Guardrails
 

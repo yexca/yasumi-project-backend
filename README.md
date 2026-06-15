@@ -138,9 +138,11 @@ Invalid configuration fails fast with a startup error.
 
 ## Release Readiness
 
-Deployment and operational checks are documented in `documents/deployment-operations.md`.
+The document index is in `documents/README.md`.
 
-The backend MVP release checklist is in `documents/mvp-release-checklist.md`.
+Deployment and operational checks are documented in `documents/01-original-development/deployment-operations.md`.
+
+The backend MVP release checklist is in `documents/01-original-development/mvp-release-checklist.md`.
 
 ## Legacy
 
