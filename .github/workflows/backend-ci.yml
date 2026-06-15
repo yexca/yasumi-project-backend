@@ -9,6 +9,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      YASUMI_SYNC_TOKEN_SECRET: test-sync-secret
     services:
       postgres:
         image: postgres:16-alpine

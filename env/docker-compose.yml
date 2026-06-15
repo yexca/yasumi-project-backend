@@ -8,10 +8,20 @@ services:
     working_dir: /src
     volumes:
       - ..:/src
-      - ../../dev_documents:/dev_documents:ro
+      - ../../docs/original-development-docs:/dev_documents:ro
     environment:
       YASUMI_CONTRACTS_DIR: /dev_documents
+      YASUMI_SYNC_TOKEN_SECRET: test-sync-secret
+      YASUMI_POSTGRES_HOST: postgres
+      YASUMI_POSTGRES_PORT: 5432
+      YASUMI_POSTGRES_DB: yasumi
+      YASUMI_POSTGRES_USER: yasumi
+      YASUMI_POSTGRES_PASSWORD: yasumi
+      YASUMI_POSTGRES_SSLMODE: disable
     command: ["go", "test", "./..."]
+    depends_on:
+      postgres:
+        condition: service_healthy
     profiles: ["tools"]
 
   postgres:
