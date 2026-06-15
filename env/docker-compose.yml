@@ -1,3 +1,5 @@
+name: yexca-yasumi-backend-local
+
 services:
   go-toolchain:
     build:
@@ -62,9 +64,13 @@ services:
       - 'sleep 10 && mongosh --host mongo:27017 --eval ''try{rs.status().ok && quit(0)} catch {} rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host : "mongo:27017" }]})'''
 
   api:
+    image: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}:${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        YASUMI_IMAGE_REPOSITORY: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}
+        YASUMI_IMAGE_TAG: ${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     env_file:
       - local.env.example
     environment:
@@ -82,9 +88,13 @@ services:
         condition: service_started
 
   migrate:
+    image: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}:${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        YASUMI_IMAGE_REPOSITORY: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}
+        YASUMI_IMAGE_TAG: ${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     entrypoint: ["/usr/local/bin/yasumi-migrate"]
     env_file:
       - local.env.example

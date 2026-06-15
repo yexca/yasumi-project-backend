@@ -86,6 +86,8 @@ Copy-Item .env.example .env
 docker compose -f .\docker-compose.example.yml up --build
 ```
 
+By default, the local Docker image name is `yexca/yasumi-backend:0.1.0`.
+
 Docker Compose automatically reads the root `.env` file when commands are run from this repository root. The `.env` file is ignored by Git and Docker build contexts; keep local secrets there and commit only `.env.example`.
 
 The root compose stack starts PostgreSQL, MongoDB for PowerSync, PowerSync, applies migrations, and starts the API. It exposes:
@@ -100,6 +102,12 @@ To apply migrations directly:
 
 ```powershell
 docker compose -f .\docker-compose.example.yml run --rm migrate
+```
+
+To build the versioned runtime image explicitly:
+
+```powershell
+docker build -t yexca/yasumi-backend:0.1.0 .
 ```
 
 The same command brings up the required PowerSync infrastructure for local sync validation:

@@ -10,6 +10,14 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/yasumi-
 
 FROM alpine:3.20
 
+ARG YASUMI_IMAGE_REPOSITORY=yexca/yasumi-backend
+ARG YASUMI_IMAGE_TAG=0.1.0
+
+LABEL org.opencontainers.image.title="yasumi-backend" \
+      org.opencontainers.image.vendor="yexca" \
+      org.opencontainers.image.version="${YASUMI_IMAGE_TAG}" \
+      org.opencontainers.image.ref.name="${YASUMI_IMAGE_REPOSITORY}:${YASUMI_IMAGE_TAG}"
+
 RUN adduser -D -H -u 10001 yasumi
 USER yasumi
 

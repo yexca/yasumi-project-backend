@@ -31,6 +31,8 @@ docker run --rm -v "${PWD}:/src" -w /src golang:1.23-alpine go vet ./...
 
 The production-style runtime is built from the repository root `Dockerfile`.
 
+The default local runtime image name is `yexca/yasumi-backend:0.1.0`.
+
 ## Local Services
 
 `docker-compose.yml` defines PostgreSQL, MongoDB for PowerSync, PowerSync, a one-shot `migrate` service, and the API.

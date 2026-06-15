@@ -1,4 +1,4 @@
-name: yasumi-backend
+name: yexca-yasumi-backend
 
 x-yasumi-environment: &yasumi-environment
   YASUMI_APP_ENV: ${YASUMI_APP_ENV:-local}
@@ -42,9 +42,13 @@ services:
       retries: 5
 
   migrate:
+    image: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}:${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        YASUMI_IMAGE_REPOSITORY: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}
+        YASUMI_IMAGE_TAG: ${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     entrypoint: ["/usr/local/bin/yasumi-migrate"]
     environment:
       <<: *yasumi-environment
@@ -54,9 +58,13 @@ services:
     restart: "no"
 
   api:
+    image: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}:${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        YASUMI_IMAGE_REPOSITORY: ${YASUMI_DOCKER_IMAGE_REPOSITORY:-yexca/yasumi-backend}
+        YASUMI_IMAGE_TAG: ${YASUMI_DOCKER_IMAGE_TAG:-0.1.0}
     environment:
       <<: *yasumi-environment
     ports:
