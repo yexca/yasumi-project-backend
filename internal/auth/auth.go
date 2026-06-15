@@ -80,7 +80,7 @@ type AccountRepository interface {
 }
 
 type accountTx interface {
-	CreateAccount(ctx context.Context, user repository.UserRecord, credential repository.CredentialRecord, settings repository.UserSettingsRecord) error
+	CreateAccount(ctx context.Context, user repository.UserRecord, credential repository.CredentialRecord, settings repository.UserSettingsRecord, onboardingItems []repository.ItemRecord) error
 	FindAccountByIdentifier(ctx context.Context, identifier string) (repository.AccountWithCredentialRecord, error)
 	GetCredentialForUpdate(ctx context.Context, userID string) (repository.CredentialRecord, error)
 	GetUserForUpdate(ctx context.Context, userID string) (repository.UserRecord, error)
@@ -243,6 +243,10 @@ func (s *AccountService) Register(ctx context.Context, req RegisterRequest) (Aut
 		CreatedAt:        now,
 		ExpiresAt:        expiresAt,
 	}
+	onboardingItems, err := defaultOnboardingItems(userID, now)
+	if err != nil {
+		return AuthResponse{}, serviceUnavailable("generate onboarding items")
+	}
 
 	err = s.repo.InTx(ctx, func(ctx context.Context, tx accountTx) error {
 		if err := tx.CreateAccount(ctx, user, repository.CredentialRecord{
@@ -253,7 +257,7 @@ func (s *AccountService) Register(ctx context.Context, req RegisterRequest) (Aut
 			PasswordChangedAt:     now,
 			CreatedAt:             now,
 			UpdatedAt:             now,
-		}, defaultSettings(userID, now)); err != nil {
+		}, defaultSettings(userID, now), onboardingItems); err != nil {
 			return mapAccountRepositoryError(err)
 		}
 		if err := tx.CreateSession(ctx, session); err != nil {
@@ -735,6 +739,79 @@ func defaultSettings(userID string, now time.Time) repository.UserSettingsRecord
 	}
 }
 
+func defaultOnboardingItems(userID string, now time.Time) ([]repository.ItemRecord, error) {
+	localDate := now.In(time.FixedZone("JST", 9*60*60))
+	today := localDate.Format("2006-01-02")
+	nextWeek := localDate.AddDate(0, 0, 7).Format("2006-01-02")
+	reviewDate := localDate.AddDate(0, 0, 14).Format("2006-01-02")
+	deviceID := "account-registration"
+	floating := "floating"
+	dateOnly := "date_only"
+	effortSmall := 1
+	effortMedium := 2
+	importanceNormal := 3
+	importanceHigh := 4
+	items := []repository.ItemRecord{
+		{
+			UserID:             userID,
+			ItemType:           "inbox",
+			Title:              "Capture a quick thought here",
+			Note:               stringPtr("Inbox items are for things you have not organized yet."),
+			Status:             "active",
+			QuickAddSourceText: stringPtr("Try Quick Add or save a loose thought"),
+		},
+		{
+			UserID:                userID,
+			ItemType:              "date_task",
+			Title:                 "Plan today's focus",
+			Note:                  stringPtr("A date task appears on a specific day."),
+			Status:                "active",
+			ScheduledDate:         &today,
+			ScheduledTimeZoneMode: &floating,
+			EstimatedEffort:       &effortSmall,
+			Importance:            &importanceNormal,
+		},
+		{
+			UserID:               userID,
+			ItemType:             "deadline_task",
+			Title:                "Review a sample deadline",
+			Note:                 stringPtr("A deadline task keeps the due date visible while you plan work."),
+			Status:               "active",
+			PlannedWorkDate:      &today,
+			DeadlineDate:         &nextWeek,
+			DeadlineTimeZoneMode: &dateOnly,
+			EstimatedEffort:      &effortMedium,
+			Importance:           &importanceHigh,
+		},
+		{
+			UserID:          userID,
+			ItemType:        "idea",
+			Title:           "Save an idea to revisit",
+			Note:            stringPtr("Ideas stay visible without becoming overdue tasks."),
+			Status:          "active",
+			ReviewDate:      &reviewDate,
+			EstimatedEffort: &effortSmall,
+			Importance:      &importanceNormal,
+		},
+	}
+	for i := range items {
+		id, err := newUUID()
+		if err != nil {
+			return nil, err
+		}
+		items[i].ID = id
+		items[i].PressureMetadata = []byte("{}")
+		items[i].CreatedAt = now
+		items[i].UpdatedAt = now
+		items[i].ClientUpdatedAt = now
+		items[i].ServerUpdatedAt = now
+		items[i].CreatedByDeviceID = deviceID
+		items[i].UpdatedByDeviceID = deviceID
+		items[i].Revision = 1
+	}
+	return items, nil
+}
+
 func accountUserDTO(user repository.UserRecord) AccountUserDTO {
 	return AccountUserDTO{
 		ID:          user.ID,
@@ -742,6 +819,10 @@ func accountUserDTO(user repository.UserRecord) AccountUserDTO {
 		Email:       user.Email,
 		DisplayName: user.DisplayName,
 	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 func mapAccountRepositoryError(err error) error {

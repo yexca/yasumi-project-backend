@@ -200,6 +200,34 @@ func assertAccountRows(t *testing.T, pool *pgxpool.Pool, userID, rawPassword, ra
 	if settingsCount != 1 {
 		t.Fatalf("settings count = %d, want 1", settingsCount)
 	}
+
+	rows, err := pool.Query(ctx, `
+		select item_type
+		from items
+		where user_id = $1
+		order by item_type
+	`, userID)
+	if err != nil {
+		t.Fatalf("read onboarding items: %v", err)
+	}
+	defer rows.Close()
+
+	gotTypes := map[string]int{}
+	for rows.Next() {
+		var itemType string
+		if err := rows.Scan(&itemType); err != nil {
+			t.Fatalf("scan onboarding item: %v", err)
+		}
+		gotTypes[itemType]++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate onboarding items: %v", err)
+	}
+	for _, itemType := range []string{"inbox", "date_task", "deadline_task", "idea"} {
+		if gotTypes[itemType] != 1 {
+			t.Fatalf("onboarding item type %s count = %d, want 1; all types = %+v", itemType, gotTypes[itemType], gotTypes)
+		}
+	}
 }
 
 func newAccountService(pool *pgxpool.Pool) *auth.AccountService {

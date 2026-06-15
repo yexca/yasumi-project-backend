@@ -213,7 +213,7 @@ type SessionWithUserRecord struct {
 	User    UserRecord
 }
 
-func (tx *Tx) CreateAccount(ctx context.Context, user UserRecord, credential CredentialRecord, settings UserSettingsRecord) error {
+func (tx *Tx) CreateAccount(ctx context.Context, user UserRecord, credential CredentialRecord, settings UserSettingsRecord, onboardingItems []ItemRecord) error {
 	const userQuery = `
 		insert into users (
 			id, username, email, email_verified_at, display_name, status, created_at, updated_at
@@ -255,6 +255,11 @@ func (tx *Tx) CreateAccount(ctx context.Context, user UserRecord, credential Cre
 
 	if err := tx.UpsertUserSettings(ctx, settings); err != nil {
 		return err
+	}
+	for _, item := range onboardingItems {
+		if err := tx.UpsertItem(ctx, item); err != nil {
+			return err
+		}
 	}
 	return nil
 }
