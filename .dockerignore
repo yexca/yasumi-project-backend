@@ -2,7 +2,10 @@
 .idea/
 .vscode/
 legacy/
+.env*
+env/*.env*
+documents/
+README*
 env/local.env
-.env
 *.log
 coverage.out

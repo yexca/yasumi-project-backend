@@ -44,6 +44,8 @@ The API image includes both:
 
 `local.env.example` contains local-only placeholder values for PostgreSQL and token signing. Do not store real credentials in this repository.
 
+When publishing the runtime image, inject runtime secrets through environment variables or your deployment secret manager instead of baking them into the image.
+
 Create a local account before calling authenticated routes:
 
 ```powershell

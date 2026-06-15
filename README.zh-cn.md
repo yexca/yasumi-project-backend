@@ -49,6 +49,8 @@ docker compose -f .\docker-compose.example.yml up --build
 
 从项目根目录执行 Docker Compose 时，Compose 会自动读取根目录 `.env` 用于变量替换。`.env` 已被 Git 和 Docker build context 忽略，本地密钥应放在 `.env`，只提交 `.env.example`。
 
+公开发布镜像时，`YASUMI_SYNC_TOKEN_SECRET` 这类运行时密钥应通过环境变量或密钥注入提供，不应固化进镜像。
+
 默认服务栈会启动 PostgreSQL、PowerSync 所需的 MongoDB、PowerSync，自带执行数据库迁移，然后启动 API。
 
 可访问：
@@ -72,6 +74,8 @@ docker compose -f .\docker-compose.example.yml run --rm migrate
 ```powershell
 docker build -t yexca/yasumi-backend:0.1.0 .
 ```
+
+当推送 `0.1.0` 或 `v0.1.0` 这类版本 tag，或手动触发 `Docker Publish` 工作流时，GitHub Actions 会把运行镜像发布到 Docker Hub。该工作流使用 `yexca` 账号，并要求仓库已配置 `DOCKERHUB_TOKEN` secret。
 
 默认命令会一并启动本地同步验证所需的 PowerSync 基础设施：
 

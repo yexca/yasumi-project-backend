@@ -105,12 +105,12 @@ func Load() (Config, error) {
 			RequestTimeout:    requestTimeout,
 		},
 		Auth: AuthConfig{
-			DevToken:       getString("YASUMI_AUTH_DEV_TOKEN", "local-dev-session-token"),
-			DevUserID:      getString("YASUMI_AUTH_DEV_USER_ID", "00000000-0000-4000-8000-000000000001"),
+			DevToken:       getString("YASUMI_AUTH_DEV_TOKEN", ""),
+			DevUserID:      getString("YASUMI_AUTH_DEV_USER_ID", ""),
 			DevDisplayName: getString("YASUMI_AUTH_DEV_DISPLAY_NAME", "Yasumi User"),
 		},
 		SyncToken: SyncTokenConfig{
-			Secret: getString("YASUMI_SYNC_TOKEN_SECRET", "local-dev-sync-secret-change-me"),
+			Secret: getString("YASUMI_SYNC_TOKEN_SECRET", ""),
 			TTL:    syncTokenTTL,
 		},
 		Log: LogConfig{
@@ -155,25 +155,11 @@ func (c Config) Validate() error {
 	if c.HTTP.RequestTimeout <= 0 {
 		problems = append(problems, "YASUMI_HTTP_REQUEST_TIMEOUT must be positive")
 	}
-	if c.Auth.DevToken == "" {
-		problems = append(problems, "YASUMI_AUTH_DEV_TOKEN must not be empty")
-	}
-	if c.Auth.DevUserID == "" {
-		problems = append(problems, "YASUMI_AUTH_DEV_USER_ID must not be empty")
-	}
 	if c.SyncToken.Secret == "" {
 		problems = append(problems, "YASUMI_SYNC_TOKEN_SECRET must not be empty")
 	}
 	if c.SyncToken.TTL <= 0 {
 		problems = append(problems, "YASUMI_SYNC_TOKEN_TTL must be positive")
-	}
-	if c.AppEnv != "local" {
-		if c.Auth.DevToken == "local-dev-session-token" {
-			problems = append(problems, "YASUMI_AUTH_DEV_TOKEN must be explicitly configured outside local")
-		}
-		if c.SyncToken.Secret == "local-dev-sync-secret-change-me" {
-			problems = append(problems, "YASUMI_SYNC_TOKEN_SECRET must be explicitly configured outside local")
-		}
 	}
 	if !isOneOf(c.Log.Level, "debug", "info", "warn", "error") {
 		problems = append(problems, "YASUMI_LOG_LEVEL must be one of debug, info, warn, error")

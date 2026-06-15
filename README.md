@@ -90,6 +90,8 @@ By default, the local Docker image name is `yexca/yasumi-backend:0.1.0`.
 
 Docker Compose automatically reads the root `.env` file when commands are run from this repository root. The `.env` file is ignored by Git and Docker build contexts; keep local secrets there and commit only `.env.example`.
 
+The published image is expected to receive runtime secrets such as `YASUMI_SYNC_TOKEN_SECRET` through environment variables or secret injection. Do not bake runtime secrets into the image.
+
 The root compose stack starts PostgreSQL, MongoDB for PowerSync, PowerSync, applies migrations, and starts the API. It exposes:
 
 ```text
@@ -109,6 +111,8 @@ To build the versioned runtime image explicitly:
 ```powershell
 docker build -t yexca/yasumi-backend:0.1.0 .
 ```
+
+GitHub Actions can publish the runtime image to Docker Hub when a release tag such as `0.1.0` or `v0.1.0` is pushed, or when the `Docker Publish` workflow is started manually. The workflow logs in as `yexca` and expects the repository secret `DOCKERHUB_TOKEN`.
 
 The same command brings up the required PowerSync infrastructure for local sync validation:
 

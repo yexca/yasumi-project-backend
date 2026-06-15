@@ -2,7 +2,13 @@ package config
 
 import "testing"
 
+func setRequiredEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("YASUMI_SYNC_TOKEN_SECRET", "test-sync-secret")
+}
+
 func TestLoadDefaults(t *testing.T) {
+	setRequiredEnv(t)
 	t.Setenv("YASUMI_HTTP_PORT", "")
 
 	cfg, err := Load()
@@ -22,6 +28,7 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadParsesAllowedOrigins(t *testing.T) {
+	setRequiredEnv(t)
 	t.Setenv("YASUMI_HTTP_ALLOWED_ORIGINS", " http://127.0.0.1:5173, ,http://localhost:4175 ")
 
 	cfg, err := Load()
@@ -38,6 +45,7 @@ func TestLoadParsesAllowedOrigins(t *testing.T) {
 }
 
 func TestValidateRejectsInvalidPort(t *testing.T) {
+	setRequiredEnv(t)
 	cfg := MustLoad()
 	cfg.HTTP.Port = 70000
 
@@ -48,6 +56,7 @@ func TestValidateRejectsInvalidPort(t *testing.T) {
 }
 
 func TestLoadRejectsInvalidInteger(t *testing.T) {
+	setRequiredEnv(t)
 	t.Setenv("YASUMI_HTTP_PORT", "not-a-port")
 
 	_, err := Load()
@@ -56,12 +65,11 @@ func TestLoadRejectsInvalidInteger(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsLocalSecretsOutsideLocal(t *testing.T) {
-	cfg := MustLoad()
-	cfg.AppEnv = "production"
+func TestLoadRejectsMissingSyncTokenSecret(t *testing.T) {
+	t.Setenv("YASUMI_SYNC_TOKEN_SECRET", "")
 
-	err := cfg.Validate()
+	_, err := Load()
 	if err == nil {
-		t.Fatal("Validate() error = nil, want error")
+		t.Fatal("Load() error = nil, want error")
 	}
 }
