@@ -1,29 +1,25 @@
-# Yasumi Documents
+# Yasumi Backend Documents
 
-该目录已经按用途重新整理，方便区分历史开发记录、二次开发说明和结构优化建议。
+This directory keeps backend-local development notes. The active structure mirrors the deployment repository so round-level guidance can be followed without guessing which document is current.
 
-## 目录结构
+## Structure
 
-- `01-original-development/`
-  - 原始开发过程文档归档。
-  - 保留阶段验收、开发记录、验证记录、部署检查和 MVP 发布清单。
-- `02-secondary-development/`
-  - 面向后续二次开发的说明文档。
-  - 重点覆盖当前架构、扩展方式、低耦合实践和提交规范。
-- `03-optimization-guidance/`
-  - 面向现有结构的轻量化优化建议。
-  - 只给出渐进式方案，不要求大规模重写。
+- `secondary-development/`
+  - Backend architecture, extension notes, and contribution guidance for ongoing work.
+- `development-rounds/round-01-mvp-backend-delivery/`
+  - Archived Round 01 MVP backend delivery records.
+- `development-rounds/round-02-real-sync-and-structure/`
+  - Active backend guidance for Round 02: real sync, structure cleanup, and onboarding seed data.
 
-## 建议阅读顺序
+## Reading Order
 
-1. 先看 `02-secondary-development/README.md`
-2. 再看 `02-secondary-development/architecture-and-extension.md`
-3. 提交代码前看 `02-secondary-development/contribution-guide.md`
-4. 评估重构时看 `03-optimization-guidance/structure-optimization-guide.md`
-5. 需要追溯历史背景时再回到 `01-original-development/`
+1. Start with `development-rounds/round-02-real-sync-and-structure/README.md` for current round scope.
+2. Read `secondary-development/architecture-and-extension.md` before changing backend boundaries.
+3. Check `secondary-development/contribution-guide.md` before submitting changes.
+4. Use `development-rounds/round-01-mvp-backend-delivery/` only for historical context.
 
-## 约束
+## Rules
 
-- 文档中不得包含真实密钥、令牌、个人信息或生产环境连接信息。
-- `01-original-development/` 作为归档区，原则上只做链接修复、脱敏和必要勘误。
-- 提交规范统一为 `action(module): summary`，详见 `02-secondary-development/contribution-guide.md`。
+- Do not store real secrets, tokens, personal data, or production connection details in documents.
+- Historical round documents should only receive link fixes, redaction, or necessary errata.
+- Current implementation guidance belongs under `development-rounds/round-02-real-sync-and-structure/` while Round 02 is active.

@@ -152,9 +152,9 @@ Invalid configuration fails fast with a startup error.
 
 The document index is in `documents/README.md`.
 
-Deployment and operational checks are documented in `documents/01-original-development/deployment-operations.md`.
+Deployment and operational checks are documented in `documents/development-rounds/round-01-mvp-backend-delivery/deployment-operations.md`.
 
-The backend MVP release checklist is in `documents/01-original-development/mvp-release-checklist.md`.
+The backend MVP release checklist is in `documents/development-rounds/round-01-mvp-backend-delivery/mvp-release-checklist.md`.
 
 ## Legacy
 

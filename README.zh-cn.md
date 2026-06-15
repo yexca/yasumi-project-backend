@@ -121,9 +121,9 @@ curl -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/jso
 
 文档索引见 `documents/README.md`。
 
-部署和运维检查见 `documents/01-original-development/deployment-operations.md`。
+部署和运维检查见 `documents/development-rounds/round-01-mvp-backend-delivery/deployment-operations.md`。
 
-后端 MVP 发布清单见 `documents/01-original-development/mvp-release-checklist.md`。
+后端 MVP 发布清单见 `documents/development-rounds/round-01-mvp-backend-delivery/mvp-release-checklist.md`。
 
 ## 历史代码
 
