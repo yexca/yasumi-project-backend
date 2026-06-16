@@ -18,6 +18,8 @@ LABEL org.opencontainers.image.title="yasumi-backend" \
       org.opencontainers.image.version="${YASUMI_IMAGE_TAG}" \
       org.opencontainers.image.ref.name="${YASUMI_IMAGE_REPOSITORY}:${YASUMI_IMAGE_TAG}"
 
+RUN apk add --no-cache tzdata
+
 RUN adduser -D -H -u 10001 yasumi
 USER yasumi
 
