@@ -186,6 +186,128 @@ func TestAcceptUploadAcceptsAreaAndRecurringTemplateWrites(t *testing.T) {
 	}
 }
 
+func TestAcceptUploadAcceptsRecurringTemplateConversionBatch(t *testing.T) {
+	idempotencyKey := domain.ActionIdempotencyKey(serviceUserID, serviceDevice, "convert-01")
+	repo := newFakeSyncRepo()
+	repo.items[serviceItemID] = repository.ItemRecord{
+		ID:                serviceItemID,
+		UserID:            serviceUserID,
+		ItemType:          "date_task",
+		Title:             "Water plants",
+		Status:            "active",
+		ScheduledDate:     stringPtr("2026-06-13"),
+		CreatedAt:         fixedNow.Add(-time.Hour),
+		CreatedByDeviceID: serviceDevice,
+		Revision:          3,
+	}
+	svc := NewSyncUploadService(repo.Repository(), fixedClock{})
+	revision := int64(3)
+	status := "active"
+
+	result, err := svc.AcceptUpload(context.Background(), serviceUserID, SyncUpload{
+		DeviceID: serviceDevice,
+		Mutations: []SyncMutation{
+			{
+				Table: "recurring_task_templates",
+				Op:    "insert",
+				Row: rawJSON(`{
+					"id":"` + serviceTplID + `",
+					"user_id":"` + serviceUserID + `",
+					"title":"Water plants",
+					"frequency":"weekly",
+					"interval":1,
+					"weekdays":[],
+					"recurrence_basis":"scheduled_date",
+					"start_date":"2026-06-13",
+					"end_type":"never",
+					"completed_count":0,
+					"next_sequence":1,
+					"reminder_rule":{},
+					"generated_task_defaults":{"item_type":"date_task"},
+					"status":"active"
+				}`),
+			},
+			{
+				Table: "items",
+				Op:    "update",
+				Row:   rawJSON(`{"id":"` + serviceItemID + `","user_id":"` + serviceUserID + `","item_type":"date_task","title":"Water plants","status":"active","scheduled_date":"2026-06-13","hidden_reason":"converted_to_recurring_template"}`),
+				ClientObserved: ObservedState{
+					Revision: &revision,
+					Status:   &status,
+				},
+			},
+			{
+				Table: "operation_history",
+				Op:    "insert",
+				Row: rawJSON(`{
+					"id":"` + serviceOpID + `",
+					"user_id":"` + serviceUserID + `",
+					"item_id":"` + serviceItemID + `",
+					"recurring_template_id":"` + serviceTplID + `",
+					"event_type":"converted_to_recurring_template",
+					"idempotency_key":"` + idempotencyKey + `"
+				}`),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("AcceptUpload error = %v", err)
+	}
+	if len(result.Accepted) != 3 {
+		t.Fatalf("accepted = %+v, want three writes", result.Accepted)
+	}
+	if got := deref(repo.items[serviceItemID].HiddenReason); got != "converted_to_recurring_template" {
+		t.Fatalf("hidden_reason = %q, want conversion marker", got)
+	}
+	if _, ok := repo.templates[serviceTplID]; !ok {
+		t.Fatal("recurring template was not inserted")
+	}
+}
+
+func TestAcceptUploadRejectsRecurringTemplateConversionWithWrongOperation(t *testing.T) {
+	repo := newFakeSyncRepo()
+	repo.items[serviceItemID] = repository.ItemRecord{
+		ID:                serviceItemID,
+		UserID:            serviceUserID,
+		ItemType:          "date_task",
+		Title:             "Water plants",
+		Status:            "active",
+		ScheduledDate:     stringPtr("2026-06-13"),
+		CreatedAt:         fixedNow.Add(-time.Hour),
+		CreatedByDeviceID: serviceDevice,
+		Revision:          3,
+	}
+	svc := NewSyncUploadService(repo.Repository(), fixedClock{})
+	revision := int64(3)
+	status := "active"
+
+	_, err := svc.AcceptUpload(context.Background(), serviceUserID, SyncUpload{
+		DeviceID: serviceDevice,
+		Mutations: []SyncMutation{
+			{
+				Table: "operation_history",
+				Op:    "insert",
+				Row: rawJSON(`{
+					"id":"` + serviceOpID + `",
+					"user_id":"` + serviceUserID + `",
+					"item_id":"` + serviceItemID + `",
+					"event_type":"skipped"
+				}`),
+			},
+			{
+				Table: "items",
+				Op:    "update",
+				Row:   rawJSON(`{"id":"` + serviceItemID + `","user_id":"` + serviceUserID + `","item_type":"date_task","title":"Water plants","status":"active","scheduled_date":"2026-06-13","hidden_reason":"converted_to_recurring_template"}`),
+				ClientObserved: ObservedState{
+					Revision: &revision,
+					Status:   &status,
+				},
+			},
+		},
+	})
+	assertDomainCode(t, err, domain.ErrorInvalidTransition)
+}
+
 func TestAcceptUploadRejectsObservedRevisionMismatch(t *testing.T) {
 	repo := newFakeSyncRepo()
 	repo.items[serviceItemID] = repository.ItemRecord{

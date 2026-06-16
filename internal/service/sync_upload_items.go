@@ -174,6 +174,10 @@ func validateSemanticMetadataTransition(previous repository.ItemRecord, next rep
 
 	if deref(previous.HiddenReason) != deref(next.HiddenReason) && op.ID != "" {
 		switch {
+		case deref(previous.HiddenReason) == "" && deref(next.HiddenReason) == string(domain.HiddenReasonConvertedToRecurringTemplate):
+			if eventType != domain.OperationConvertedToRecurringTemplate {
+				return semanticEventMismatch("hidden_reason", "converted_to_recurring_template")
+			}
 		case deref(previous.HiddenReason) == "" && deref(next.HiddenReason) == string(domain.HiddenReasonRecurringSkipped):
 			if eventType != domain.OperationSkipped {
 				return semanticEventMismatch("hidden_reason", "skipped")
