@@ -21,5 +21,5 @@ This directory archives the original backend development records and first-round
 ## Use
 
 - Treat this directory as historical archive, not active implementation guidance.
-- If these documents differ from current code, prefer the current code and `../round-02-real-sync-and-structure/` or `../../secondary-development/`.
+- If these documents differ from current code, prefer the current code and `../../developer/README.md`.
 - Link fixes, path updates, and security redaction are allowed. Avoid rewriting the original phase records.

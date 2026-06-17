@@ -1,6 +1,6 @@
 # Round 02: Backend Real Sync and Structure
 
-This directory contains backend-local guidance for Round 02. It should be read together with the deployment repository's `docs/development-rounds/round-02-real-sync-and-structure/` directory.
+This directory contains backend-local historical guidance for Round 02. It should be read together with the deployment repository's `docs/development-rounds/round-02-real-sync-and-structure/` directory when historical traceability matters.
 
 Round 02 is about making the running app sync real data through PowerSync, removing fixture-first behavior from the main path, and reducing structural pressure in the sync-facing backend files without changing the public contract casually.
 
@@ -33,3 +33,7 @@ Round 02 keeps the backend contract steady while the full app moves from simulat
 - Do not move business rules into HTTP handlers or SQL helpers.
 - Prefer small file splits over new packages unless an existing package boundary is clearly wrong.
 - Keep backend changes compatible with the deployment repository's Round 02 acceptance criteria.
+
+## Current Use
+
+The durable rules extracted from this round now live under `../../developer/`.
