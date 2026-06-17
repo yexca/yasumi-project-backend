@@ -305,6 +305,28 @@ func TestSyncTokenIgnoresClientSuppliedUserID(t *testing.T) {
 	}
 }
 
+func TestSyncTokenReturnsConfiguredPublicPowerSyncEndpoint(t *testing.T) {
+	t.Setenv("YASUMI_SYNC_TOKEN_SECRET", "test-sync-secret")
+	t.Setenv("YASUMI_POWERSYNC_PUBLIC_URL", "/powersync")
+	handler := newTestHandler(Readiness{Database: true, Sync: true})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/sync/token", strings.NewReader(`{
+		"device_id":"device-01",
+		"client_version":"0.1.0"
+	}`))
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"endpoint":"/powersync"`) {
+		t.Fatalf("body = %s, want configured powersync endpoint", rec.Body.String())
+	}
+}
+
 func TestSyncTokenValidationErrorShape(t *testing.T) {
 	handler := newTestHandler(Readiness{Database: true, Sync: true})
 

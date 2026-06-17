@@ -245,7 +245,8 @@ func (r *Router) syncToken(w http.ResponseWriter, req *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"token":      token.Value,
+		"token": token.Value,
+		"endpoint": strings.TrimSpace(r.cfg.PowerSync.PublicURL),
 		"expires_at": token.ExpiresAt.Format("2006-01-02T15:04:05Z"),
 		"stream_scope": map[string]string{
 			"user_id": token.UserID,

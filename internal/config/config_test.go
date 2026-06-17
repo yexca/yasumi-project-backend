@@ -25,6 +25,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Postgres.Database != "yasumi" {
 		t.Fatalf("Postgres.Database = %q, want yasumi", cfg.Postgres.Database)
 	}
+	if cfg.PowerSync.PublicURL != "" {
+		t.Fatalf("PowerSync.PublicURL = %q, want empty", cfg.PowerSync.PublicURL)
+	}
 }
 
 func TestLoadParsesAllowedOrigins(t *testing.T) {

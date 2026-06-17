@@ -73,7 +73,8 @@ func (c PostgresConfig) DSN() string {
 }
 
 type PowerSyncConfig struct {
-	URL string
+	PublicURL string
+	URL       string
 }
 
 func Load() (Config, error) {
@@ -126,7 +127,8 @@ func Load() (Config, error) {
 			SSLMode:  getString("YASUMI_POSTGRES_SSLMODE", "disable"),
 		},
 		PowerSync: PowerSyncConfig{
-			URL: getString("YASUMI_POWERSYNC_URL", "http://localhost:8081"),
+			PublicURL: getString("YASUMI_POWERSYNC_PUBLIC_URL", ""),
+			URL:       getString("YASUMI_POWERSYNC_URL", "http://localhost:8081"),
 		},
 	}
 
