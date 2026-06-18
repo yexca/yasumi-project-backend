@@ -29,6 +29,8 @@ docker compose -f .\env\docker-compose.yml --profile tools run --rm go-toolchain
 docker compose -f .\env\docker-compose.yml --profile tools run --rm go-toolchain go vet ./...
 ```
 
+The repository normalizes text files to LF through `.gitattributes`, including Go, Markdown, YAML, SQL, and Docker-related files. On Windows, keep the repository defaults and avoid converting tracked files to CRLF by hand.
+
 ### Repository integration checks
 
 ```powershell
