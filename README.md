@@ -86,7 +86,7 @@ Copy-Item .env.example .env
 docker compose -f .\docker-compose.example.yml up --build
 ```
 
-By default, the local Docker image name is `yexca/yasumi-backend:0.1.0`.
+By default, the local Docker image name is `yexca/yasumi-backend:0.1.1`.
 
 Docker Compose automatically reads the root `.env` file when commands are run from this repository root. The `.env` file is ignored by Git and Docker build contexts; keep local secrets there and commit only `.env.example`.
 
@@ -109,10 +109,10 @@ docker compose -f .\docker-compose.example.yml run --rm migrate
 To build the versioned runtime image explicitly:
 
 ```powershell
-docker build -t yexca/yasumi-backend:0.1.0 .
+docker build -t yexca/yasumi-backend:0.1.1 .
 ```
 
-GitHub Actions can publish the runtime image to Docker Hub when a release tag such as `0.1.0` or `v0.1.0` is pushed, or when the `Docker Publish` workflow is started manually. The workflow logs in as `yexca` and expects the repository secret `DOCKERHUB_TOKEN`.
+GitHub Actions can publish the runtime image to Docker Hub when a release tag such as `0.1.1` or `v0.1.1` is pushed, or when the `Docker Publish` workflow is started manually. The workflow logs in as `yexca` and expects the repository secret `DOCKERHUB_TOKEN`.
 
 The same command brings up the required PowerSync infrastructure for local sync validation:
 

@@ -31,7 +31,7 @@ docker run --rm -v "${PWD}:/src" -w /src golang:1.23-alpine go vet ./...
 
 The production-style runtime is built from the repository root `Dockerfile`.
 
-The default local runtime image name is `yexca/yasumi-backend:0.1.0`.
+The default local runtime image name is `yexca/yasumi-backend:0.1.1`.
 
 ## Local Services
 

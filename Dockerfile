@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/yasumi-
 FROM alpine:3.20
 
 ARG YASUMI_IMAGE_REPOSITORY=yexca/yasumi-backend
-ARG YASUMI_IMAGE_TAG=0.1.0
+ARG YASUMI_IMAGE_TAG=0.1.1
 
 LABEL org.opencontainers.image.title="yasumi-backend" \
       org.opencontainers.image.vendor="yexca" \
