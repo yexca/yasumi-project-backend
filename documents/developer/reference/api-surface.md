@@ -40,6 +40,7 @@ This document lists the backend HTTP surface that exists today and highlights th
 
 ## Important Contract Rules
 
+- Auth register, login, and refresh responses expose `access_token_expires_at` for the short-lived access token and `expires_at` for the durable refresh session. Clients must schedule refresh from the former.
 - `POST /v1/sync/token` scopes the issued token to the authenticated user.
 - `POST /v1/sync/upload` is the current sync-facing write boundary.
 - Stable API error shape matters as much as HTTP status codes.

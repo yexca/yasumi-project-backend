@@ -33,12 +33,14 @@ func TestAccountSessionContinuityUsesThirtyDayRefreshSession(t *testing.T) {
 	}
 
 	assertSessionExpiresAt(t, registered.Session.ExpiresAt, now.Add(30*24*time.Hour))
+	assertSessionExpiresAt(t, registered.Session.AccessTokenExpiresAt, now.Add(15*time.Minute))
 
 	refreshed, err := service.Refresh(ctx, registered.Session.RefreshToken)
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
 	assertSessionExpiresAt(t, refreshed.Session.ExpiresAt, now.Add(30*24*time.Hour))
+	assertSessionExpiresAt(t, refreshed.Session.AccessTokenExpiresAt, now.Add(15*time.Minute))
 }
 
 func TestAccountRegisterLoginRefreshAndLogout(t *testing.T) {

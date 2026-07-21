@@ -157,10 +157,11 @@ type AccountUserDTO struct {
 }
 
 type AuthSessionDTO struct {
-	Authenticated bool   `json:"authenticated"`
-	AccessToken   string `json:"access_token"`
-	RefreshToken  string `json:"refresh_token"`
-	ExpiresAt     string `json:"expires_at"`
+	Authenticated        bool   `json:"authenticated"`
+	AccessToken          string `json:"access_token"`
+	AccessTokenExpiresAt string `json:"access_token_expires_at"`
+	RefreshToken         string `json:"refresh_token"`
+	ExpiresAt            string `json:"expires_at"`
 }
 
 type accessTokenClaims struct {
@@ -521,10 +522,11 @@ func (s *AccountService) Authenticate(ctx context.Context, token string) (User, 
 }
 
 func (s *AccountService) authResponse(user repository.UserRecord, sessionID, refreshToken string, sessionExpiresAt time.Time) (AuthResponse, error) {
+	accessTokenExpiresAt := s.clock.Now().UTC().Add(s.accessTokenTTL)
 	accessToken, err := s.signAccessToken(accessTokenClaims{
 		SessionID: sessionID,
 		UserID:    user.ID,
-		ExpiresAt: s.clock.Now().UTC().Add(s.accessTokenTTL).Unix(),
+		ExpiresAt: accessTokenExpiresAt.Unix(),
 	})
 	if err != nil {
 		return AuthResponse{}, serviceUnavailable("sign access token")
@@ -532,10 +534,11 @@ func (s *AccountService) authResponse(user repository.UserRecord, sessionID, ref
 	return AuthResponse{
 		User: accountUserDTO(user),
 		Session: AuthSessionDTO{
-			Authenticated: true,
-			AccessToken:   accessToken,
-			RefreshToken:  refreshToken,
-			ExpiresAt:     sessionExpiresAt.UTC().Format(time.RFC3339),
+			Authenticated:        true,
+			AccessToken:          accessToken,
+			AccessTokenExpiresAt: accessTokenExpiresAt.Format(time.RFC3339),
+			RefreshToken:         refreshToken,
+			ExpiresAt:            sessionExpiresAt.UTC().Format(time.RFC3339),
 		},
 	}, nil
 }

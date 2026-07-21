@@ -534,10 +534,11 @@ func (fakeAccountService) Register(_ context.Context, req auth.RegisterRequest) 
 			DisplayName: &displayName,
 		},
 		Session: auth.AuthSessionDTO{
-			Authenticated: true,
-			AccessToken:   "access-token",
-			RefreshToken:  "refresh-token",
-			ExpiresAt:     "2026-06-13T10:30:00Z",
+			Authenticated:        true,
+			AccessToken:          "access-token",
+			AccessTokenExpiresAt: "2026-05-14T10:45:00Z",
+			RefreshToken:         "refresh-token",
+			ExpiresAt:            "2026-06-13T10:30:00Z",
 		},
 	}, nil
 }
@@ -560,10 +561,11 @@ func (fakeAccountService) Login(_ context.Context, req auth.LoginRequest) (auth.
 			DisplayName: &displayName,
 		},
 		Session: auth.AuthSessionDTO{
-			Authenticated: true,
-			AccessToken:   "access-token",
-			RefreshToken:  "refresh-token",
-			ExpiresAt:     "2026-06-13T10:30:00Z",
+			Authenticated:        true,
+			AccessToken:          "access-token",
+			AccessTokenExpiresAt: "2026-05-14T10:45:00Z",
+			RefreshToken:         "refresh-token",
+			ExpiresAt:            "2026-06-13T10:30:00Z",
 		},
 	}, nil
 }
@@ -586,10 +588,11 @@ func (fakeAccountService) Refresh(_ context.Context, refreshToken string) (auth.
 			DisplayName: &displayName,
 		},
 		Session: auth.AuthSessionDTO{
-			Authenticated: true,
-			AccessToken:   "new-access-token",
-			RefreshToken:  "new-refresh-token",
-			ExpiresAt:     "2026-06-13T10:30:00Z",
+			Authenticated:        true,
+			AccessToken:          "new-access-token",
+			AccessTokenExpiresAt: "2026-05-14T10:45:00Z",
+			RefreshToken:         "new-refresh-token",
+			ExpiresAt:            "2026-06-13T10:30:00Z",
 		},
 	}, nil
 }
